@@ -47,9 +47,10 @@ func main() {
 		case "sync":
 			baseToken := os.Args[2]
 			quoteToken := os.Args[3]
-		case "help":
-			log.Println("Long HELP message TBD")
 		case "test":
 			log.Println("Running test cases")
+		case "help":
+		default:
+			log.Println("Long HELP message TBD")
 	}
 }

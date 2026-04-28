@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"	
 	"os"
 	"strconv"
@@ -66,23 +65,13 @@ func main() {
 				os.Exit(1)
 			}
 
-			chainID, err := conn.ChainID(context.Background())
-			if err != nil {
-				panic(fmt.Errorf("failed to retrieve chain ID: %v", err))
-			}
-
-			OrderBookContract := bind.NewBoundContract(CONTRACT_ADDRESS, *ParsedABI, conn, conn, conn)
-
-			packedData, err := ParsedABI.Pack("TODO")
+			packedTxData, err := ParsedABI.Pack("TODO")
 			if err != nil {
 				log.Println("Error packing data", err)
 				os.Exit(1)
 			}
-			//key, err := keystore.DecryptKey(json, passphrase)
-			//auth := bind.NewKeyedTransactor(key.PrivateKey, chainID)
 
-			transactOpts := bind.TransactOpts{} // TODO: Fill in
-			val, err := bind.Transact(OrderBookContract, &transactOpts, packedData)
+			err = sendTransaction(conn, SK, packedTxData)
 			
 
 			
@@ -108,11 +97,11 @@ func main() {
 
 // sendTransaction sends a transaction with 1 ETH to a specified address.
 func sendTransaction(cl *ethclient.Client, privkeyhex string, txdata []byte) error {
-	var (
-		sk       = crypto.ToECDSAUnsafe(common.FromHex(privkeyhex))
-		to       = CONTRACT_ADDRESS
-		sender   = common.HexToAddress(ADDR)
-	)
+	sk, err := crypto.ToECDSA(common.FromHex(privkeyhex))
+	if err != nil {
+		return err
+	}
+	sender := crypto.PubkeyToAddress(sk.PublicKey)
 
 	// Retrieve the chainid (needed for signer)
 	chainid, err := cl.ChainID(context.Background())
@@ -143,8 +132,8 @@ func sendTransaction(cl *ethclient.Client, privkeyhex string, txdata []byte) err
 			Nonce:     nonce,
 			GasTipCap: tipCap,
 			GasFeeCap: feeCap,
-			To:        CONTRACT_ADDRESS,
-			Value:     0,
+			To:        &CONTRACT_ADDRESS,
+			Value:     big.NewInt(0),
 			Data:      txdata,
 		})
 	// Sign the transaction using our keys

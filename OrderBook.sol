@@ -16,7 +16,6 @@ contract OrderBook {
 		address user;
                 uint baseQuantity;
                 uint quoteQuantity;
-                uint orderId;
                 address baseToken;
                 address quoteToken;
                 Side side;
@@ -37,7 +36,7 @@ contract OrderBook {
 			IERC20(quoteToken).transferFrom(msg.sender, address(this), quoteQuantity);
 		}
                 uint orderId = ++orderCounter;
-                orders[orderId] = Order(msg.sender, baseQuantity, quoteQuantity, orderId, baseToken, quoteToken, side);
+                orders[orderId] = Order(msg.sender, baseQuantity, quoteQuantity, baseToken, quoteToken, side);
 		emit OrderPlaced(orderId, msg.sender, baseToken, quoteToken, side, baseQuantity, quoteQuantity);
         }
 

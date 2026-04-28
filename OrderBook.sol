@@ -58,7 +58,7 @@ contract OrderBook {
                 delete orders[orderId];
 		if (order.side == Side.SELL) {
 			if (order.baseToken == address(0)) {
-				order.user.transfer(order.baseQuantity);
+				payable(order.user).transfer(order.baseQuantity);
 			} 
 			else {
 				IERC20(order.baseToken).transfer(msg.sender, order.baseQuantity);
@@ -66,7 +66,7 @@ contract OrderBook {
 		}
 		else if (order.side == Side.BUY) {
 			if (order.quoteToken == address(0)) {
-				order.user.transfer(order.quoteQuantity);
+				payable(order.user).transfer(order.quoteQuantity);
 			} 
 			else {
 				IERC20(order.quoteToken).transfer(msg.sender, order.quoteQuantity);
@@ -75,11 +75,21 @@ contract OrderBook {
 		emit OrderCanceled(orderId);
         }
 	
-	function fillOrder (uint orderId, uint baseQuantity) public {
+	function fillOrder (uint orderId, uint baseQuantity) public payable {
                 Order memory order = orders[orderId];
+		uint quoteQuantity = baseQuantity * order.quoteQuantity / order.baseQuantity;
+		if (msg.value > 0) {
+			if (order.side == Side.SELL) {
+				require(order.quoteToken == address(0), "quote token should be 0x0");
+				require(quoteQuantity == msg.value, "mismatch between quoteQuantity and amount of ETH sent");
+			}
+			else if (order.side == Side.BUY) {
+				require(order.baseToken == address(0), "base token should be 0x0");
+				require(baseQuantity == msg.value, "mismatch between provided baseQuantity and amount of ETH sent");
+			}
+		}
                 require(baseQuantity > 0, "zero quantity fills not permitted");
                 require(baseQuantity <= order.baseQuantity, "trying to fill more than order size");
-		uint quoteQuantity = baseQuantity * order.quoteQuantity / order.baseQuantity;
                 require(quoteQuantity > 0, "calculated quote quantity is zero");
 		orders[orderId].baseQuantity -= baseQuantity;
 		orders[orderId].quoteQuantity -= quoteQuantity;
@@ -87,21 +97,35 @@ contract OrderBook {
 			delete orders[orderId];
 		}
 		if (order.side == Side.SELL) {
-			IERC20(order.quoteToken).transferFrom(msg.sender, order.user, quoteQuantity);
-			IERC20(order.baseToken).transfer(msg.sender, baseQuantity);
+			if (order.quoteToken == address(0)) {
+				payable(order.user).transfer(quoteQuantity);
+			}
+			else {
+				IERC20(order.quoteToken).transferFrom(msg.sender, order.user, quoteQuantity);
+			}
+			if (order.baseToken == address(0)) {
+				payable(msg.sender).transfer(baseQuantity);
+			}
+			else {
+				IERC20(order.baseToken).transfer(msg.sender, baseQuantity);
+			}
 		}
 		else if (order.side == Side.BUY) {
-			IERC20(order.baseToken).transferFrom(msg.sender, order.user, baseQuantity);
-			IERC20(order.quoteToken).transfer(msg.sender, quoteQuantity);
+			if (order.baseToken == address(0)) {
+				payable(order.user).transfer(baseQuantity);
+			}
+			else {
+				IERC20(order.baseToken).transferFrom(msg.sender, order.user, baseQuantity);
+			}
+			if (order.quoteToken == address(0)) {
+				payable(msg.sender).transfer(quoteQuantity);
+			}
+			else {
+				IERC20(order.quoteToken).transfer(msg.sender, quoteQuantity);
+			}
 		}
 		emit OrderFill(orderId, baseQuantity);
 	}
 
-	function fillOrders(uint[] calldata orderIds, uint[] calldata baseFillQuantities) public {
-		require(orderIds.length == baseFillQuantities.length, "orderIds and baseFillQuantities array lengths must match");
-		for (uint i=0; i < orderIds.length; i++) {
-			fillOrder(orderIds[i], baseFillQuantities[i]);
-		}
-	}
 }
 

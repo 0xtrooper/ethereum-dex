@@ -27,13 +27,25 @@ contract OrderBook {
 	event OrderCanceled(uint indexed orderId);
 	event OrderFill(uint indexed orderId, uint baseQuantity);
 
-	function placeOrder (address baseToken, address quoteToken, Side side, uint baseQuantity, uint quoteQuantity) public {
+	function placeOrder (address baseToken, address quoteToken, Side side, uint baseQuantity, uint quoteQuantity) public payable {
 		require(baseQuantity > 0 && quoteQuantity > 0, "zero quantity orders not permitted");
 		if (side == Side.SELL) {
-			IERC20(baseToken).transferFrom(msg.sender, address(this), baseQuantity);
+			if (msg.value > 0) {
+				require(baseToken == address(0), "base token should be 0x0 when selling ETH");
+				require(baseQuantity == msg.value, "mismatch between provided baseQuantity and amount of ETH sent");
+			}
+			else {
+				IERC20(baseToken).transferFrom(msg.sender, address(this), baseQuantity);
+			}
 		}
 		else if (side == Side.BUY) {
-			IERC20(quoteToken).transferFrom(msg.sender, address(this), quoteQuantity);
+			if (msg.value > 0) {
+				require(quoteToken == address(0), "quote token should be 0x0 when buying with ETH");
+				require(quoteQuantity == msg.value, "mismatch between provided quoteQuantity and amount of ETH sent");
+			}
+			else {
+				IERC20(quoteToken).transferFrom(msg.sender, address(this), quoteQuantity);
+			}
 		}
                 uint orderId = ++orderCounter;
                 orders[orderId] = Order(msg.sender, baseQuantity, quoteQuantity, baseToken, quoteToken, side);

@@ -57,10 +57,20 @@ contract OrderBook {
 		require(msg.sender == order.user, "users can only cancel their own order");
                 delete orders[orderId];
 		if (order.side == Side.SELL) {
-			IERC20(order.baseToken).transfer(msg.sender, order.baseQuantity);
+			if (order.baseToken == address(0)) {
+				order.user.transfer(order.baseQuantity);
+			} 
+			else {
+				IERC20(order.baseToken).transfer(msg.sender, order.baseQuantity);
+			}
 		}
 		else if (order.side == Side.BUY) {
-			IERC20(order.quoteToken).transfer(msg.sender, order.quoteQuantity);
+			if (order.quoteToken == address(0)) {
+				order.user.transfer(order.quoteQuantity);
+			} 
+			else {
+				IERC20(order.quoteToken).transfer(msg.sender, order.quoteQuantity);
+			}
 		}
 		emit OrderCanceled(orderId);
         }

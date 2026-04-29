@@ -14,10 +14,6 @@ contract OrderBook {
                 address quoteToken;
                 Side side;
         }
-	struct MarketBalances {
-		uint baseBalance;
-		uint quoteBalance;
-	}
         mapping(uint => Order) public orders;
         uint public orderCounter = 0; 
 
@@ -130,6 +126,4 @@ contract OrderBook {
 		}
 		emit OrderFill(orderId, baseQuantity);
 	}
-
 }
-

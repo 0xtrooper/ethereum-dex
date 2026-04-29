@@ -19,7 +19,6 @@ contract OrderBook {
 		uint quoteBalance;
 	}
         mapping(uint => Order) public orders;
-        mapping(bytes32 => MarketBalances) public MARKET_BALANCES;
         uint public orderCounter = 0; 
 
 	event OrderPlaced(uint orderId, address indexed user, address indexed baseToken, address indexed quoteToken, Side side, uint baseQuantity, uint quoteQuantity);
@@ -39,7 +38,6 @@ contract OrderBook {
 				uint afterBalance = IERC20(baseToken).balanceOf(address(this));
 				require(afterBalance - beforeBalance == baseQuantity, "token error: tokens that charge transfer fees are not permitted");
 			}
-			MARKET_BALANCES[marketHash(baseToken, quoteToken)].baseBalance += baseQuantity;
 		}
 		else if (side == Side.BUY) {
 			if (msg.value > 0) {
@@ -52,7 +50,6 @@ contract OrderBook {
 				uint afterBalance = IERC20(quoteToken).balanceOf(address(this));
 				require(afterBalance - beforeBalance == quoteQuantity, "token error: tokens that charge transfer fees are not permitted");
 			}
-			MARKET_BALANCES[marketHash(baseToken, quoteToken)].quoteBalance += quoteQuantity;
 		}
                 uint orderId = ++orderCounter;
                 orders[orderId] = Order(msg.sender, baseQuantity, quoteQuantity, baseToken, quoteToken, side);
@@ -64,8 +61,6 @@ contract OrderBook {
 		require(msg.sender == order.user, "users can only cancel their own order");
                 delete orders[orderId];
 		if (order.side == Side.SELL) {
-			require(order.baseQuantity <= MARKET_BALANCES[marketHash(order.baseToken, order.quoteToken)].baseBalance, "HACK ALERT: cancel amount is overflowing market balance");
-			MARKET_BALANCES[marketHash(order.baseToken, order.quoteToken)].baseBalance -= order.baseQuantity;
 			if (order.baseToken == address(0)) {
 				payable(order.user).transfer(order.baseQuantity);
 			} 
@@ -74,8 +69,6 @@ contract OrderBook {
 			}
 		}
 		else if (order.side == Side.BUY) {
-			require(order.quoteQuantity <= MARKET_BALANCES[marketHash(order.baseToken, order.quoteToken)].quoteBalance, "HACK ALERT: cancel amount is overflowing market balance");
-			MARKET_BALANCES[marketHash(order.baseToken, order.quoteToken)].quoteBalance -= order.quoteQuantity;
 			if (order.quoteToken == address(0)) {
 				payable(order.user).transfer(order.quoteQuantity);
 			} 
@@ -101,23 +94,19 @@ contract OrderBook {
 		}
                 require(baseQuantity > 0, "zero quantity fills not permitted");
                 require(baseQuantity <= order.baseQuantity, "trying to fill more than order size");
-                require(baseQuantity <= MARKET_BALANCES[marketHash(order.baseToken, order.quoteToken)].baseBalance, "HACK ALERT: fill amount is overflowing market balance");
                 require(quoteQuantity > 0, "calculated quote quantity is zero");
-                require(quoteQuantity <= MARKET_BALANCES[marketHash(order.baseToken, order.quoteToken)].quoteBalance, "HACK ALERT: fill amount is overflowing market balance");
 		orders[orderId].baseQuantity -= baseQuantity;
 		orders[orderId].quoteQuantity -= quoteQuantity;
 		if (orders[orderId].baseQuantity == 0) {
 			delete orders[orderId];
 		}
 		if (order.side == Side.SELL) {
-			MARKET_BALANCES[marketHash(order.baseToken, order.quoteToken)].quoteBalance -= quoteQuantity;
 			if (order.quoteToken == address(0)) {
 				payable(order.user).transfer(quoteQuantity);
 			}
 			else {
 				IERC20(order.quoteToken).safeTransferFrom(msg.sender, order.user, quoteQuantity);
 			}
-			MARKET_BALANCES[marketHash(order.baseToken, order.quoteToken)].baseBalance -= baseQuantity;
 			if (order.baseToken == address(0)) {
 				payable(msg.sender).transfer(baseQuantity);
 			}
@@ -126,14 +115,12 @@ contract OrderBook {
 			}
 		}
 		else if (order.side == Side.BUY) {
-			MARKET_BALANCES[marketHash(order.baseToken, order.quoteToken)].baseBalance -= baseQuantity;
 			if (order.baseToken == address(0)) {
 				payable(order.user).transfer(baseQuantity);
 			}
 			else {
 				IERC20(order.baseToken).safeTransferFrom(msg.sender, order.user, baseQuantity);
 			}
-			MARKET_BALANCES[marketHash(order.baseToken, order.quoteToken)].quoteBalance -= quoteQuantity;
 			if (order.quoteToken == address(0)) {
 				payable(msg.sender).transfer(quoteQuantity);
 			}
@@ -142,10 +129,6 @@ contract OrderBook {
 			}
 		}
 		emit OrderFill(orderId, baseQuantity);
-	}
-
-	function marketHash (address baseToken, address quoteToken) public pure returns (bytes32) {
-		return keccak256(abi.encodePacked(baseToken, quoteToken));
 	}
 
 }

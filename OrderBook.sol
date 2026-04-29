@@ -4,6 +4,25 @@ import "../libraries/SafeERC20.sol";
 
 using SafeERC20 for IERC20;
 
+contract Bank {
+	address owner; 
+
+	constructor(address _owner) {
+		owner = _owner;
+	}
+
+	function withdrawTo(address user, address token, uint amount) public {
+		require(msg.sender == owner, "only owner can withdraw funds");
+
+		if (token == address(0)) {
+			payable(user).transfer(amount);
+		}
+		else {
+			IERC20(token).safeTransfer(user, amount);
+		}
+	}
+}
+
 contract OrderBook {
         enum Side { BUY, SELL }
         struct Order {

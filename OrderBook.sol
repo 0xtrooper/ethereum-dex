@@ -21,11 +21,6 @@ contract Bank {
 			IERC20(token).safeTransfer(user, amount);
 		}
 	}
-
-	function approveOwner(address token) public {
-		require(token != address(0), "cannot approve ETH");
-		IERC20(token).approve(owner, type(uint256).max);
-	}
 }
 
 contract OrderBook {
@@ -53,12 +48,6 @@ contract OrderBook {
 		address bankAddress = address(new Bank(address(this)));
 		banks[bankHash] = bankAddress;
 
-		if (baseToken != address(0)) {
-			Bank(bankAddress).approveOwner(baseToken);
-		}
-		if (quoteToken != address(0)) {
-			Bank(bankAddress).approveOwner(quoteToken);
-		}
 	}
 
 	function placeOrder (address baseToken, address quoteToken, Side side, uint baseQuantity, uint quoteQuantity) public payable {

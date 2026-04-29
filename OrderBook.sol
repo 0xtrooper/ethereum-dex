@@ -64,22 +64,24 @@ contract OrderBook {
 		require(msg.sender == order.user, "users can only cancel their own order");
                 delete orders[orderId];
 		if (order.side == Side.SELL) {
+			require(order.baseQuantity <= MARKET_BALANCES[marketHash(order.baseToken, order.quoteToken)].baseBalance, "HACK ALERT: cancel amount is overflowing market balance");
+			MARKET_BALANCES[marketHash(order.baseToken, order.quoteToken)].baseBalance -= order.baseQuantity;
 			if (order.baseToken == address(0)) {
 				payable(order.user).transfer(order.baseQuantity);
 			} 
 			else {
 				IERC20(order.baseToken).safeTransfer(msg.sender, order.baseQuantity);
 			}
-			MARKET_BALANCES[marketHash(baseToken, quoteToken)].baseBalance -= baseQuantity;
 		}
 		else if (order.side == Side.BUY) {
+			require(order.quoteQuantity <= MARKET_BALANCES[marketHash(order.baseToken, order.quoteToken)].quoteBalance, "HACK ALERT: cancel amount is overflowing market balance");
+			MARKET_BALANCES[marketHash(order.baseToken, order.quoteToken)].quoteBalance -= order.quoteQuantity;
 			if (order.quoteToken == address(0)) {
 				payable(order.user).transfer(order.quoteQuantity);
 			} 
 			else {
 				IERC20(order.quoteToken).safeTransfer(msg.sender, order.quoteQuantity);
 			}
-			MARKET_BALANCES[marketHash(baseToken, quoteToken)].quoteBalance -= quoteQuantity;
 		}
 		emit OrderCanceled(orderId);
         }
@@ -99,19 +101,23 @@ contract OrderBook {
 		}
                 require(baseQuantity > 0, "zero quantity fills not permitted");
                 require(baseQuantity <= order.baseQuantity, "trying to fill more than order size");
+                require(baseQuantity <= MARKET_BALANCES[marketHash(order.baseToken, order.quoteToken)].baseBalance, "HACK ALERT: fill amount is overflowing market balance");
                 require(quoteQuantity > 0, "calculated quote quantity is zero");
+                require(quoteQuantity <= MARKET_BALANCES[marketHash(order.baseToken, order.quoteToken)].quoteBalance, "HACK ALERT: fill amount is overflowing market balance");
 		orders[orderId].baseQuantity -= baseQuantity;
 		orders[orderId].quoteQuantity -= quoteQuantity;
 		if (orders[orderId].baseQuantity == 0) {
 			delete orders[orderId];
 		}
 		if (order.side == Side.SELL) {
+			MARKET_BALANCES[marketHash(order.baseToken, order.quoteToken)].quoteBalance -= quoteQuantity;
 			if (order.quoteToken == address(0)) {
 				payable(order.user).transfer(quoteQuantity);
 			}
 			else {
 				IERC20(order.quoteToken).safeTransferFrom(msg.sender, order.user, quoteQuantity);
 			}
+			MARKET_BALANCES[marketHash(order.baseToken, order.quoteToken)].baseBalance -= baseQuantity;
 			if (order.baseToken == address(0)) {
 				payable(msg.sender).transfer(baseQuantity);
 			}
@@ -120,12 +126,14 @@ contract OrderBook {
 			}
 		}
 		else if (order.side == Side.BUY) {
+			MARKET_BALANCES[marketHash(order.baseToken, order.quoteToken)].baseBalance -= baseQuantity;
 			if (order.baseToken == address(0)) {
 				payable(order.user).transfer(baseQuantity);
 			}
 			else {
 				IERC20(order.baseToken).safeTransferFrom(msg.sender, order.user, baseQuantity);
 			}
+			MARKET_BALANCES[marketHash(order.baseToken, order.quoteToken)].quoteBalance -= quoteQuantity;
 			if (order.quoteToken == address(0)) {
 				payable(msg.sender).transfer(quoteQuantity);
 			}

@@ -33,7 +33,7 @@ contract OrderBook {
                 address quoteToken;
                 Side side;
         }
-        mapping(bytes32 => Bank) public banks;
+        mapping(bytes32 => address) public banks;
         mapping(uint => Order) public orders;
         uint public orderCounter = 0; 
 
@@ -42,10 +42,11 @@ contract OrderBook {
 	event OrderFill(uint indexed orderId, uint baseQuantity);
 
 	function createMarket (address baseToken, address quoteToken) public {
-		banks[bankhash(baseToken, quoteToken)] = new Bank(address(this));
+		banks[bankhash(baseToken, quoteToken)] = address(new Bank(address(this)));
 	}
 
 	function placeOrder (address baseToken, address quoteToken, Side side, uint baseQuantity, uint quoteQuantity) public payable {
+		require(banks[bankhash(baseToken, quoteToken)] != address(0), "createMarket before placing an order on it");
 		require(baseQuantity > 0 && quoteQuantity > 0, "zero quantity orders not permitted");
 		if (side == Side.SELL) {
 			if (msg.value > 0) {

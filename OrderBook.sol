@@ -39,6 +39,7 @@ contract OrderBook {
 				uint afterBalance = IERC20(baseToken).balanceOf(address(this));
 				require(afterBalance - beforeBalance == baseQuantity, "token error: tokens that charge transfer fees are not permitted");
 			}
+			MARKET_BALANCES[marketHash(baseToken, quoteToken)].baseBalance += baseQuantity;
 		}
 		else if (side == Side.BUY) {
 			if (msg.value > 0) {
@@ -51,6 +52,7 @@ contract OrderBook {
 				uint afterBalance = IERC20(quoteToken).balanceOf(address(this));
 				require(afterBalance - beforeBalance == quoteQuantity, "token error: tokens that charge transfer fees are not permitted");
 			}
+			MARKET_BALANCES[marketHash(baseToken, quoteToken)].quoteBalance += quoteQuantity;
 		}
                 uint orderId = ++orderCounter;
                 orders[orderId] = Order(msg.sender, baseQuantity, quoteQuantity, baseToken, quoteToken, side);
@@ -68,6 +70,7 @@ contract OrderBook {
 			else {
 				IERC20(order.baseToken).safeTransfer(msg.sender, order.baseQuantity);
 			}
+			MARKET_BALANCES[marketHash(baseToken, quoteToken)].baseBalance -= baseQuantity;
 		}
 		else if (order.side == Side.BUY) {
 			if (order.quoteToken == address(0)) {
@@ -76,6 +79,7 @@ contract OrderBook {
 			else {
 				IERC20(order.quoteToken).safeTransfer(msg.sender, order.quoteQuantity);
 			}
+			MARKET_BALANCES[marketHash(baseToken, quoteToken)].quoteBalance -= quoteQuantity;
 		}
 		emit OrderCanceled(orderId);
         }
@@ -130,6 +134,10 @@ contract OrderBook {
 			}
 		}
 		emit OrderFill(orderId, baseQuantity);
+	}
+
+	function marketHash (address baseToken, address quoteToken) public pure returns (bytes32) {
+		return keccak256(abi.encodePacked(baseToken, quoteToken));
 	}
 
 }

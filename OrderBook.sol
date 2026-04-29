@@ -29,7 +29,10 @@ contract OrderBook {
 				require(baseQuantity == msg.value, "mismatch between provided baseQuantity and amount of ETH sent");
 			}
 			else {
+				uint beforeBalance = IERC20(baseToken).balanceOf(address(this));
 				IERC20(baseToken).safeTransferFrom(msg.sender, address(this), baseQuantity);
+				uint afterBalance = IERC20(baseToken).balanceOf(address(this));
+				require(afterBalance - beforeBalance == baseQuantity, "token error: tokens that charge transfer fees are not permitted");
 			}
 		}
 		else if (side == Side.BUY) {
@@ -38,7 +41,10 @@ contract OrderBook {
 				require(quoteQuantity == msg.value, "mismatch between provided quoteQuantity and amount of ETH sent");
 			}
 			else {
+				uint beforeBalance = IERC20(quoteToken).balanceOf(address(this));
 				IERC20(quoteToken).safeTransferFrom(msg.sender, address(this), quoteQuantity);
+				uint afterBalance = IERC20(quoteToken).balanceOf(address(this));
+				require(afterBalance - beforeBalance == quoteQuantity, "token error: tokens that charge transfer fees are not permitted");
 			}
 		}
                 uint orderId = ++orderCounter;

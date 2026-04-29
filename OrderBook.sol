@@ -41,7 +41,7 @@ contract OrderBook {
 	event OrderCanceled(uint indexed orderId);
 	event OrderFill(uint indexed orderId, uint baseQuantity);
 
-	function placeOrder (address baseToken, address quoteToken) public {
+	function createMarket (address baseToken, address quoteToken) public {
 		banks[bankhash(baseToken, quoteToken)] = new Bank(address(this));
 	}
 

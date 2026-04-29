@@ -21,6 +21,11 @@ contract Bank {
 			IERC20(token).safeTransfer(user, amount);
 		}
 	}
+
+	function approveOwner(address token) public {
+		require(token != address(0), "cannot approve ETH");
+		IERC20(token).approve(owner, type(uint256).max);
+	}
 }
 
 contract OrderBook {
@@ -42,21 +47,37 @@ contract OrderBook {
 	event OrderFill(uint indexed orderId, uint baseQuantity);
 
 	function createMarket (address baseToken, address quoteToken) public {
-		banks[bankhash(baseToken, quoteToken)] = address(new Bank(address(this)));
+		bytes32 bankHash = bankhash(baseToken, quoteToken);
+		address bankAddress = address(new Bank(address(this)));
+		banks[bankHash] = bankAddress;
+
+		if (baseToken != address(0)) {
+			Bank(bankAddress).approveOwner(baseToken);
+		}
+		if (quoteToken != address(0)) {
+			Bank(bankAddress).approveOwner(quoteToken);
+		}
 	}
 
 	function placeOrder (address baseToken, address quoteToken, Side side, uint baseQuantity, uint quoteQuantity) public payable {
-		require(banks[bankhash(baseToken, quoteToken)] != address(0), "createMarket before placing an order on it");
+		address bankAddress = banks[bankhash(baseToken, quoteToken)];
+		require(bankAddress != address(0), "createMarket before placing an order on it");
 		require(baseQuantity > 0 && quoteQuantity > 0, "zero quantity orders not permitted");
+
+		// forward all incoming ETH to the market's bank
+		if (msg.value > 0) {
+			payable(bankAddress).transfer(msg.value);
+		}
+
 		if (side == Side.SELL) {
 			if (msg.value > 0) {
 				require(baseToken == address(0), "base token should be 0x0 when selling ETH");
 				require(baseQuantity == msg.value, "mismatch between provided baseQuantity and amount of ETH sent");
 			}
 			else {
-				uint beforeBalance = IERC20(baseToken).balanceOf(address(this));
-				IERC20(baseToken).safeTransferFrom(msg.sender, address(this), baseQuantity);
-				uint afterBalance = IERC20(baseToken).balanceOf(address(this));
+				uint beforeBalance = IERC20(baseToken).balanceOf(bankAddress);
+				IERC20(baseToken).safeTransferFrom(msg.sender, bankAddress, baseQuantity);
+				uint afterBalance = IERC20(baseToken).balanceOf(bankAddress);
 				require(afterBalance - beforeBalance == baseQuantity, "token error: tokens that charge transfer fees are not permitted");
 			}
 		}
@@ -66,9 +87,9 @@ contract OrderBook {
 				require(quoteQuantity == msg.value, "mismatch between provided quoteQuantity and amount of ETH sent");
 			}
 			else {
-				uint beforeBalance = IERC20(quoteToken).balanceOf(address(this));
-				IERC20(quoteToken).safeTransferFrom(msg.sender, address(this), quoteQuantity);
-				uint afterBalance = IERC20(quoteToken).balanceOf(address(this));
+				uint beforeBalance = IERC20(quoteToken).balanceOf(bankAddress);
+				IERC20(quoteToken).safeTransferFrom(msg.sender, bankAddress, quoteQuantity);
+				uint afterBalance = IERC20(quoteToken).balanceOf(bankAddress);
 				require(afterBalance - beforeBalance == quoteQuantity, "token error: tokens that charge transfer fees are not permitted");
 			}
 		}
@@ -81,27 +102,26 @@ contract OrderBook {
 		Order memory order = orders[orderId];
 		require(msg.sender == order.user, "users can only cancel their own order");
                 delete orders[orderId];
+		address bankAddress = banks[bankhash(order.baseToken, order.quoteToken)];
 		if (order.side == Side.SELL) {
-			if (order.baseToken == address(0)) {
-				payable(order.user).transfer(order.baseQuantity);
-			} 
-			else {
-				IERC20(order.baseToken).safeTransfer(msg.sender, order.baseQuantity);
-			}
+			Bank(bankAddress).withdrawTo(order.user, order.baseToken, order.baseQuantity);
 		}
 		else if (order.side == Side.BUY) {
-			if (order.quoteToken == address(0)) {
-				payable(order.user).transfer(order.quoteQuantity);
-			} 
-			else {
-				IERC20(order.quoteToken).safeTransfer(msg.sender, order.quoteQuantity);
-			}
+			Bank(bankAddress).withdrawTo(order.user, order.quoteToken, order.quoteQuantity);
 		}
 		emit OrderCanceled(orderId);
         }
 	
 	function fillOrder (uint orderId, uint baseQuantity) public payable {
                 Order memory order = orders[orderId];
+
+		address bankAddress = banks[bankhash(order.baseToken, order.quoteToken)];
+
+		// forward all incoming ETH to the market's bank
+		if (msg.value > 0) {
+			payable(bankAddress).transfer(msg.value);
+		}
+
 		uint quoteQuantity = baseQuantity * order.quoteQuantity / order.baseQuantity;
 		if (msg.value > 0) {
 			if (order.side == Side.SELL) {
@@ -123,31 +143,21 @@ contract OrderBook {
 		}
 		if (order.side == Side.SELL) {
 			if (order.quoteToken == address(0)) {
-				payable(order.user).transfer(quoteQuantity);
+				Bank(bankAddress).withdrawTo(order.user, address(0), quoteQuantity); // send ETH
 			}
 			else {
 				IERC20(order.quoteToken).safeTransferFrom(msg.sender, order.user, quoteQuantity);
 			}
-			if (order.baseToken == address(0)) {
-				payable(msg.sender).transfer(baseQuantity);
-			}
-			else {
-				IERC20(order.baseToken).safeTransfer(msg.sender, baseQuantity);
-			}
+			Bank(bankAddress).withdrawTo(msg.sender, order.baseToken, baseQuantity); 
 		}
 		else if (order.side == Side.BUY) {
 			if (order.baseToken == address(0)) {
-				payable(order.user).transfer(baseQuantity);
+				Bank(bankAddress).withdrawTo(order.user, address(0), baseQuantity); // send ETH
 			}
 			else {
 				IERC20(order.baseToken).safeTransferFrom(msg.sender, order.user, baseQuantity);
 			}
-			if (order.quoteToken == address(0)) {
-				payable(msg.sender).transfer(quoteQuantity);
-			}
-			else {
-				IERC20(order.quoteToken).safeTransfer(msg.sender, quoteQuantity);
-			}
+			Bank(bankAddress).withdrawTo(msg.sender, order.quoteToken, quoteQuantity); 
 		}
 		emit OrderFill(orderId, baseQuantity);
 	}

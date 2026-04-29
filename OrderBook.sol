@@ -48,6 +48,8 @@ contract OrderBook {
 
 	function createMarket (address baseToken, address quoteToken) public {
 		bytes32 bankHash = bankhash(baseToken, quoteToken);
+		require(banks[bankHash] == address(0), "market has already been created");
+
 		address bankAddress = address(new Bank(address(this)));
 		banks[bankHash] = bankAddress;
 

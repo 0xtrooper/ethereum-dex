@@ -29,7 +29,7 @@ contract OrderBook {
 				require(baseQuantity == msg.value, "mismatch between provided baseQuantity and amount of ETH sent");
 			}
 			else {
-				bool success = IERC20(baseToken).transferFrom(msg.sender, address(this), baseQuantity);
+				bool success = IERC20(baseToken).safeTransferFrom(msg.sender, address(this), baseQuantity);
 				require(success, "failed transfer");
 			}
 		}
@@ -39,7 +39,7 @@ contract OrderBook {
 				require(quoteQuantity == msg.value, "mismatch between provided quoteQuantity and amount of ETH sent");
 			}
 			else {
-				bool success = IERC20(quoteToken).transferFrom(msg.sender, address(this), quoteQuantity);
+				bool success = IERC20(quoteToken).safeTransferFrom(msg.sender, address(this), quoteQuantity);
 				require(success, "failed transfer");
 			}
 		}
@@ -57,7 +57,7 @@ contract OrderBook {
 				payable(order.user).transfer(order.baseQuantity);
 			} 
 			else {
-				bool success = IERC20(order.baseToken).transfer(msg.sender, order.baseQuantity);
+				bool success = IERC20(order.baseToken).safeTransfer(msg.sender, order.baseQuantity);
 				require(success, "failed transfer");
 			}
 		}
@@ -66,7 +66,7 @@ contract OrderBook {
 				payable(order.user).transfer(order.quoteQuantity);
 			} 
 			else {
-				bool success = IERC20(order.quoteToken).transfer(msg.sender, order.quoteQuantity);
+				bool success = IERC20(order.quoteToken).safeTransfer(msg.sender, order.quoteQuantity);
 				require(success, "failed transfer");
 			}
 		}
@@ -99,14 +99,14 @@ contract OrderBook {
 				payable(order.user).transfer(quoteQuantity);
 			}
 			else {
-				bool success = IERC20(order.quoteToken).transferFrom(msg.sender, order.user, quoteQuantity);
+				bool success = IERC20(order.quoteToken).safeTransferFrom(msg.sender, order.user, quoteQuantity);
 				require(success, "failed transfer");
 			}
 			if (order.baseToken == address(0)) {
 				payable(msg.sender).transfer(baseQuantity);
 			}
 			else {
-				bool success = IERC20(order.baseToken).transfer(msg.sender, baseQuantity);
+				bool success = IERC20(order.baseToken).safeTransfer(msg.sender, baseQuantity);
 				require(success, "failed transfer");
 			}
 		}
@@ -115,14 +115,14 @@ contract OrderBook {
 				payable(order.user).transfer(baseQuantity);
 			}
 			else {
-				bool success = IERC20(order.baseToken).transferFrom(msg.sender, order.user, baseQuantity);
+				bool success = IERC20(order.baseToken).safeTransferFrom(msg.sender, order.user, baseQuantity);
 				require(success, "failed transfer");
 			}
 			if (order.quoteToken == address(0)) {
 				payable(msg.sender).transfer(quoteQuantity);
 			}
 			else {
-				bool success = IERC20(order.quoteToken).transfer(msg.sender, quoteQuantity);
+				bool success = IERC20(order.quoteToken).safeTransfer(msg.sender, quoteQuantity);
 				require(success, "failed transfer");
 			}
 		}

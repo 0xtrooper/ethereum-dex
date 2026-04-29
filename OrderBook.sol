@@ -33,12 +33,17 @@ contract OrderBook {
                 address quoteToken;
                 Side side;
         }
+        mapping(bytes32 => Bank) public banks;
         mapping(uint => Order) public orders;
         uint public orderCounter = 0; 
 
 	event OrderPlaced(uint orderId, address indexed user, address indexed baseToken, address indexed quoteToken, Side side, uint baseQuantity, uint quoteQuantity);
 	event OrderCanceled(uint indexed orderId);
 	event OrderFill(uint indexed orderId, uint baseQuantity);
+
+	function placeOrder (address baseToken, address quoteToken) public {
+		banks[bankhash(baseToken, quoteToken)] = new Bank(address(this));
+	}
 
 	function placeOrder (address baseToken, address quoteToken, Side side, uint baseQuantity, uint quoteQuantity) public payable {
 		require(baseQuantity > 0 && quoteQuantity > 0, "zero quantity orders not permitted");
@@ -144,5 +149,9 @@ contract OrderBook {
 			}
 		}
 		emit OrderFill(orderId, baseQuantity);
+	}
+
+	function bankhash(address baseToken, address quoteToken) public pure returns (bytes32) {
+		return keccak256(abi.encodePacked(baseToken, quoteToken));
 	}
 }

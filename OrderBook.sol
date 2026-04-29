@@ -14,7 +14,12 @@ contract OrderBook {
                 address quoteToken;
                 Side side;
         }
+	struct MarketBalances {
+		uint baseBalance;
+		uint quoteBalance;
+	}
         mapping(uint => Order) public orders;
+        mapping(bytes32 => MarketBalances) public MARKET_BALANCES;
         uint public orderCounter = 0; 
 
 	event OrderPlaced(uint orderId, address indexed user, address indexed baseToken, address indexed quoteToken, Side side, uint baseQuantity, uint quoteQuantity);

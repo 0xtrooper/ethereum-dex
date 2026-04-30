@@ -5,6 +5,8 @@ import (
 	"os"
 
 	configcmd "dex/cmd/config"
+	orderbookcmd "dex/cmd/orderbook"
+	tokencmd "dex/cmd/token"
 	walletcmd "dex/cmd/wallet"
 	"dex/service"
 
@@ -22,6 +24,8 @@ func NewCommand(svc *service.Service, ks *service.Keystore) *cobra.Command {
 
 	root.AddCommand(configcmd.NewCommand(svc))
 	root.AddCommand(walletcmd.NewCommand(ks))
+	root.AddCommand(orderbookcmd.NewCommand(svc, ks))
+	root.AddCommand(tokencmd.NewCommand(svc, ks))
 
 	return root
 }

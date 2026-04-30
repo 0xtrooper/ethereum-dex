@@ -64,7 +64,7 @@ func main() {
 				log.Println("Failed to connect to rpc: ", err)
 				os.Exit(1)
 			}
-
+			
 			packedTxData, err := ParsedABI.Pack("TODO")
 			if err != nil {
 				log.Println("Error packing data", err)
@@ -82,11 +82,38 @@ func main() {
 				log.Println("error parsing quantity", err)
 				os.Exit(1)
 			}
+
+			conn, err := ethclient.Dial(*rpcurl)
+			if err != nil {
+				log.Println("Failed to connect to rpc: ", err)
+				os.Exit(1)
+			}
+			
+			packedTxData, err := ParsedABI.Pack("TODO")
+			if err != nil {
+				log.Println("Error packing data", err)
+				os.Exit(1)
+			}
+
+			err = sendTransaction(conn, SK, packedTxData)
+
 		case "cancelorder":
 			orderId := os.Args[2]
+
+			conn, err := ethclient.Dial(*rpcurl)
+			if err != nil {
+				log.Println("Failed to connect to rpc: ", err)
+				os.Exit(1)
+			}
+			
+			packedTxData, err := ParsedABI.Pack("TODO")
+			if err != nil {
+				log.Println("Error packing data", err)
+				os.Exit(1)
+			}
+
+			err = sendTransaction(conn, SK, packedTxData)
 		case "sync":
-			baseToken := os.Args[2]
-			quoteToken := os.Args[3]
 		case "test":
 			log.Println("Running test cases")
 		case "help":

@@ -31,6 +31,7 @@ func newWalletExportCommand(ks *service.Keystore) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Fprint(os.Stderr, walletExportWarning)
 			agreed, err := prompt.Confirm("I understand the risks and wish to proceed")
+			fmt.Fprintln(os.Stderr)
 			if err != nil {
 				return err
 			}
@@ -62,7 +63,7 @@ func newWalletExportCommand(ks *service.Keystore) *cobra.Command {
 				return err
 			}
 
-			fmt.Fprintln(cmd.OutOrStdout(), privateKey)
+			fmt.Fprintln(cmd.OutOrStdout(), "Private Key:", privateKey)
 			return nil
 		},
 	}
@@ -74,6 +75,9 @@ func newWalletExportCommand(ks *service.Keystore) *cobra.Command {
 func promptWalletExportSelection(cmd *cobra.Command, wallets []string) (string, error) {
 	if len(wallets) == 0 {
 		return "", fmt.Errorf("no wallets in keystore")
+	}
+	if len(wallets) == 1 {
+		return wallets[0], nil
 	}
 
 	for i, addr := range wallets {

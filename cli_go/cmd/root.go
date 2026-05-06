@@ -5,7 +5,7 @@ import (
 	"os"
 
 	configcmd "dex/cmd/config"
-	orderbookcmd "dex/cmd/orderbook"
+	tradecmd "dex/cmd/trade"
 	tokencmd "dex/cmd/token"
 	walletcmd "dex/cmd/wallet"
 	"dex/service"
@@ -23,8 +23,8 @@ func NewCommand(svc *service.Service, ks *service.Keystore) *cobra.Command {
 	root.CompletionOptions.DisableDefaultCmd = true
 
 	root.AddCommand(configcmd.NewCommand(svc))
-	root.AddCommand(walletcmd.NewCommand(ks))
-	root.AddCommand(orderbookcmd.NewCommand(svc, ks))
+	root.AddCommand(walletcmd.NewCommand(svc, ks))
+	root.AddCommand(tradecmd.NewCommand(svc, ks))
 	root.AddCommand(tokencmd.NewCommand(svc, ks))
 
 	return root

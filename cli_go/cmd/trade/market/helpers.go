@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"dex/service"
@@ -72,4 +73,53 @@ func marketAsk(label string) (string, error) {
 		return "", fmt.Errorf("aborted")
 	}
 	return scanner.Text(), nil
+}
+
+func marketSelectWalletAddress(ks *service.Keystore, requestedAddress string) (string, error) {
+	if ks == nil {
+		return "", fmt.Errorf("keystore service is not initialized")
+	}
+	wallets := ks.List()
+	if len(wallets) == 0 {
+		return "", fmt.Errorf("no wallets in keystore")
+	}
+
+	if strings.TrimSpace(requestedAddress) != "" {
+		if !common.IsHexAddress(requestedAddress) {
+			return "", fmt.Errorf("invalid wallet address %q", requestedAddress)
+		}
+		wanted := common.HexToAddress(requestedAddress).Hex()
+		for _, wallet := range wallets {
+			if strings.EqualFold(wallet, wanted) {
+				return wanted, nil
+			}
+		}
+		return "", fmt.Errorf("wallet %s not found in keystore", wanted)
+	}
+
+	if len(wallets) == 1 {
+		return wallets[0], nil
+	}
+
+	for i, wallet := range wallets {
+		fmt.Fprintf(os.Stderr, "[%d] %s\n", i+1, wallet)
+	}
+	fmt.Fprintln(os.Stderr)
+
+	scanner := bufio.NewScanner(os.Stdin)
+	for {
+		fmt.Fprintf(os.Stderr, "Select wallet [1-%d]: ", len(wallets))
+		if !scanner.Scan() {
+			if err := scanner.Err(); err != nil {
+				return "", err
+			}
+			return "", fmt.Errorf("aborted")
+		}
+		n, err := strconv.Atoi(strings.TrimSpace(scanner.Text()))
+		if err != nil || n < 1 || n > len(wallets) {
+			fmt.Fprintf(os.Stderr, "Please enter a number between 1 and %d.\n", len(wallets))
+			continue
+		}
+		return wallets[n-1], nil
+	}
 }

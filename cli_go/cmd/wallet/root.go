@@ -6,12 +6,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewCommand(ks *service.Keystore) *cobra.Command {
+func NewCommand(svc *service.Service, ks *service.Keystore) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "wallet",
 		Short: "Manage wallets",
 	}
 
+	cmd.AddCommand(newWalletBalanceCommand(svc, ks))
 	cmd.AddCommand(newWalletListCommand(ks))
 	cmd.AddCommand(newWalletImportCommand(ks))
 	cmd.AddCommand(newWalletCreateCommand(ks))

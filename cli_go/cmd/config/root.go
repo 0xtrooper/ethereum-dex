@@ -15,6 +15,7 @@ func NewCommand(svc *service.Service) *cobra.Command {
 	cmd.AddCommand(newRPCCommand(svc))
 	cmd.AddCommand(newChainIDCommand(svc))
 	cmd.AddCommand(newContractCommand(svc))
+	cmd.AddCommand(newTokenCommand(svc))
 	cmd.AddCommand(newShowCommand(svc))
 	cmd.AddCommand(newTerminateCommand(svc))
 

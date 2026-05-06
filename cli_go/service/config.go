@@ -10,6 +10,7 @@ import (
 type Config struct {
 	Network  NetworkConfig  `yaml:"network"`
 	Contract ContractConfig `yaml:"contract"`
+	Tokens   []TokenConfig  `yaml:"tokens,omitempty"`
 }
 
 type NetworkConfig struct {
@@ -19,6 +20,12 @@ type NetworkConfig struct {
 
 type ContractConfig struct {
 	Address string `yaml:"address"`
+}
+
+type TokenConfig struct {
+	Symbol   string `yaml:"symbol,omitempty"`
+	Address  string `yaml:"address"`
+	Decimals uint8  `yaml:"decimals,omitempty"`
 }
 
 type Service struct {
@@ -134,6 +141,7 @@ func defaultConfig() *Config {
 		Contract: ContractConfig{
 			Address: defaultContractAddress,
 		},
+		Tokens: nil,
 	}
 }
 

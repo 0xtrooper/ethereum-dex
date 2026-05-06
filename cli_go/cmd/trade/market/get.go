@@ -42,6 +42,7 @@ func runGet(cmd *cobra.Command, cfg *service.Service) error {
 	if err != nil {
 		return err
 	}
+	cmd.SilenceUsage = true
 	out, err := processGet(in, cfg)
 	if err != nil {
 		return err

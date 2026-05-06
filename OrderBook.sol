@@ -1,6 +1,6 @@
 pragma solidity ^0.8.1;
 
-import "../libraries/SafeERC20.sol";
+import "./libraries/SafeERC20.sol";
 
 using SafeERC20 for IERC20;
 

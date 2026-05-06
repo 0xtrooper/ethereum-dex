@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"dex/internal/prompt"
 	"dex/service"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -45,24 +46,28 @@ func newCreateCommand(cfg *service.Service, ks *service.Keystore) *cobra.Command
 }
 
 func runCreate(cmd *cobra.Command, cfg *service.Service, ks *service.Keystore) error {
-	in, err := inputCreate(cmd, cfg)
+	in, err := inputCreate(cmd, cfg, ks)
 	if err != nil {
 		return err
 	}
-	out, err := processCreate(in, cfg, ks)
+	cmd.SilenceUsage = true
+	out, err := processCreate(cmd, in, cfg, ks)
 	if err != nil {
 		return err
 	}
 	return outputCreate(cmd, out)
 }
 
-func inputCreate(cmd *cobra.Command, cfg *service.Service) (*createIn, error) {
+func inputCreate(cmd *cobra.Command, cfg *service.Service, ks *service.Keystore) (*createIn, error) {
 	contractAddress, err := marketReadContractAddress(cmd, cfg.Get())
 	if err != nil {
 		return nil, err
 	}
 	walletAddress, _ := cmd.Flags().GetString("wallet")
-	walletAddress = strings.TrimSpace(walletAddress)
+	walletAddress, err = marketSelectWalletAddress(ks, strings.TrimSpace(walletAddress))
+	if err != nil {
+		return nil, err
+	}
 	baseToken, err := marketReadAddressFlag(cmd, "base", "Base token address")
 	if err != nil {
 		return nil, err
@@ -79,23 +84,19 @@ func inputCreate(cmd *cobra.Command, cfg *service.Service) (*createIn, error) {
 	}, nil
 }
 
-func processCreate(in *createIn, cfg *service.Service, ks *service.Keystore) (*createOut, error) {
+func processCreate(cmd *cobra.Command, in *createIn, cfg *service.Service, ks *service.Keystore) (*createOut, error) {
 	rpcService, err := service.NewRPC(cfg.Get().Network, marketRPCConnectTimeout)
 	if err != nil {
 		return nil, err
 	}
 	defer rpcService.Close()
-	walletService, err := service.NewWallet(ks, in.walletAddress)
-	if err != nil {
-		return nil, err
-	}
-	orderbookService, err := service.NewOrderBookService(rpcService, walletService, in.contractAddress, cfg.Get().Network.ChainID)
+	orderbookReadService, err := service.NewOrderBookService(rpcService, nil, in.contractAddress, cfg.Get().Network.ChainID)
 	if err != nil {
 		return nil, err
 	}
 
 	ctx := context.Background()
-	bankAddress, deployed, err := orderbookService.FetchBank(ctx, in.baseToken, in.quoteToken)
+	bankAddress, deployed, err := orderbookReadService.FetchBank(ctx, in.baseToken, in.quoteToken)
 	if err != nil {
 		return nil, err
 	}
@@ -104,6 +105,25 @@ func processCreate(in *createIn, cfg *service.Service, ks *service.Keystore) (*c
 			marketDeployed: true,
 			bankAddress:    bankAddress.Hex(),
 		}, nil
+	}
+	fmt.Fprintln(cmd.OutOrStdout(), "Review create market")
+	fmt.Fprintf(cmd.OutOrStdout(), "  Wallet: %s\n", in.walletAddress)
+	fmt.Fprintf(cmd.OutOrStdout(), "  Base:   %s\n", in.baseToken.Hex())
+	fmt.Fprintf(cmd.OutOrStdout(), "  Quote:  %s\n", in.quoteToken.Hex())
+	ok, err := prompt.Confirm("Proceed and send create market transaction")
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, fmt.Errorf("aborted")
+	}
+	walletService, err := service.NewWallet(ks, in.walletAddress)
+	if err != nil {
+		return nil, err
+	}
+	orderbookService, err := service.NewOrderBookService(rpcService, walletService, in.contractAddress, cfg.Get().Network.ChainID)
+	if err != nil {
+		return nil, err
 	}
 	tx, err := orderbookService.CreateMarket(ctx, in.baseToken, in.quoteToken)
 	if err != nil {

@@ -1,8 +1,8 @@
-package orderbook
+package trade
 
 import (
-	marketcmd "dex/cmd/orderbook/market"
-	ordercmd "dex/cmd/orderbook/order"
+	marketcmd "dex/cmd/trade/market"
+	ordercmd "dex/cmd/trade/order"
 	"dex/service"
 
 	"github.com/spf13/cobra"
@@ -10,8 +10,9 @@ import (
 
 func NewCommand(cfg *service.Service, ks *service.Keystore) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "orderbook",
-		Short: "Interact with the exchange order book",
+		Use:     "trade",
+		Aliases: []string{"orderbook"},
+		Short:   "Interact with the exchange order book",
 	}
 
 	cmd.AddCommand(marketcmd.NewCommand(cfg, ks))

@@ -158,7 +158,7 @@ create-market: build-cli ensure-anvil init-state import-deployer-wallet
 	wallet="$${WALLET:-$(MARKET_WALLET)}"; \
 	[ -n "$$base" ] || { echo "Missing base token address. Set BASE=0x... or run make create-tokens first."; exit 1; }; \
 	[ -n "$$quote" ] || { echo "Missing quote token address. Set QUOTE=0x... or run make create-tokens first."; exit 1; }; \
-	DEX_WALLET_PASSWORD="$(DEX_WALLET_PASSWORD)" $(CLI_BIN) trade market create --contract "$$ORDERBOOK_ADDRESS" --wallet "$$wallet" --base "$$base" --quote "$$quote"
+	DEX_WALLET_PASSWORD="$(DEX_WALLET_PASSWORD)" $(CLI_BIN) trade market create --yes --contract "$$ORDERBOOK_ADDRESS" --wallet "$$wallet" --base "$$base" --quote "$$quote"
 
 create-tokens: check-tools ensure-anvil build-cli build-forge init-state
 	@set -eu; \
@@ -209,7 +209,7 @@ add-account: ensure-anvil build-cli init-state
 	. ./$(ANVIL_STATE_FILE); \
 	[ -n "$${TOKEN_A_ADDRESS:-}" ] || { echo "TOKEN_A_ADDRESS missing in $(ANVIL_STATE_FILE). Run: make create-tokens"; exit 1; }; \
 	[ -n "$${TOKEN_B_ADDRESS:-}" ] || { echo "TOKEN_B_ADDRESS missing in $(ANVIL_STATE_FILE). Run: make create-tokens"; exit 1; }; \
-	new_wallet_out="$$(printf 'y\n' | $(CLI_BIN) wallet create --no-mnemonic --password "$(NEW_WALLET_PASSWORD)")"; \
+	new_wallet_out="$$($(CLI_BIN) wallet create --yes --no-mnemonic --password "$(NEW_WALLET_PASSWORD)")"; \
 	echo "$$new_wallet_out"; \
 	new_wallet="$$(printf '%s\n' "$$new_wallet_out" | awk '/Created wallet:/ {print $$3}' | tail -n1)"; \
 	[ -n "$$new_wallet" ] || { echo "Failed to parse newly created wallet address"; exit 1; }; \
@@ -238,7 +238,7 @@ testnet: ensure-anvil deploy-and-configure-cli create-tokens add-account
 	[ -n "$$wallet" ] || { echo "No new wallet found in $(ANVIL_STATE_FILE). Run: make add-account"; exit 1; }; \
 	[ -n "$${TOKEN_A_ADDRESS:-}" ] || { echo "TOKEN_A_ADDRESS missing in $(ANVIL_STATE_FILE)"; exit 1; }; \
 	[ -n "$${TOKEN_B_ADDRESS:-}" ] || { echo "TOKEN_B_ADDRESS missing in $(ANVIL_STATE_FILE)"; exit 1; }; \
-	DEX_WALLET_PASSWORD="$(NEW_WALLET_PASSWORD)" $(CLI_BIN) trade market create --contract "$$ORDERBOOK_ADDRESS" --wallet "$$wallet" --base "$$TOKEN_A_ADDRESS" --quote "$$TOKEN_B_ADDRESS"; \
+	DEX_WALLET_PASSWORD="$(NEW_WALLET_PASSWORD)" $(CLI_BIN) trade market create --yes --contract "$$ORDERBOOK_ADDRESS" --wallet "$$wallet" --base "$$TOKEN_A_ADDRESS" --quote "$$TOKEN_B_ADDRESS"; \
 	echo ""; \
 	echo "Quick summary:"; \
 	echo "- RPC: $(ANVIL_RPC_URL)"; \

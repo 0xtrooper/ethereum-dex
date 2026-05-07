@@ -28,20 +28,24 @@ func newWalletCreateCommand(ks *service.Keystore) *cobra.Command {
 		Short: "Create a new wallet",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Fprint(os.Stderr, walletCreateDisclosure)
-			agreed, err := prompt.Confirm("I have read and understood the above")
-			if err != nil {
-				return err
-			}
-			if !agreed {
-				return fmt.Errorf("aborted")
+			var err error
+			yes, _ := cmd.Flags().GetBool("yes")
+			if !yes {
+				fmt.Fprint(os.Stderr, walletCreateDisclosure)
+				agreed, err := prompt.Confirm("I have read and understood the above")
+				if err != nil {
+					return err
+				}
+				if !agreed {
+					return fmt.Errorf("aborted")
+				}
 			}
 
 			noMnemonic, _ := cmd.Flags().GetBool("no-mnemonic")
 
 			var mnemonic string
 			if !noMnemonic {
-				mnemonic, err = walletCreateMnemonicFlow(ks)
+				mnemonic, err = walletCreateMnemonicFlow(ks, yes)
 				if err != nil {
 					return err
 				}
@@ -72,10 +76,11 @@ func newWalletCreateCommand(ks *service.Keystore) *cobra.Command {
 
 	cmd.Flags().String("password", "", "Keystore password")
 	cmd.Flags().Bool("no-mnemonic", false, "Skip mnemonic phrase generation and confirmation")
+	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompts")
 	return cmd
 }
 
-func walletCreateMnemonicFlow(ks *service.Keystore) (string, error) {
+func walletCreateMnemonicFlow(ks *service.Keystore, yes bool) (string, error) {
 	mnemonic, err := ks.GenerateMnemonic()
 	if err != nil {
 		return "", err
@@ -92,17 +97,19 @@ func walletCreateMnemonicFlow(ks *service.Keystore) (string, error) {
 	fmt.Fprintln(os.Stderr, "This phrase can restore your wallet. Anyone who has it has full access to your funds.")
 	fmt.Fprintln(os.Stderr)
 
-	agreed, err := prompt.Confirm("I have written down my mnemonic phrase")
-	if err != nil {
-		return "", err
-	}
-	if !agreed {
-		return "", fmt.Errorf("aborted")
-	}
+	if !yes {
+		agreed, err := prompt.Confirm("I have written down my mnemonic phrase")
+		if err != nil {
+			return "", err
+		}
+		if !agreed {
+			return "", fmt.Errorf("aborted")
+		}
 
-	fmt.Fprint(os.Stderr, "\033[2J\033[H")
-	if err := walletConfirmMnemonic(mnemonic); err != nil {
-		return "", err
+		fmt.Fprint(os.Stderr, "\033[2J\033[H")
+		if err := walletConfirmMnemonic(mnemonic); err != nil {
+			return "", err
+		}
 	}
 	return mnemonic, nil
 }

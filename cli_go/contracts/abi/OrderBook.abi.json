@@ -1,0 +1,133 @@
+[
+  {
+    "inputs": [
+      { "internalType": "bytes32", "name": "", "type": "bytes32" }
+    ],
+    "name": "banks",
+    "outputs": [
+      { "internalType": "address", "name": "", "type": "address" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "baseToken", "type": "address" },
+      { "internalType": "address", "name": "quoteToken", "type": "address" }
+    ],
+    "name": "bankhash",
+    "outputs": [
+      { "internalType": "bytes32", "name": "", "type": "bytes32" }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "orderId", "type": "uint256" }
+    ],
+    "name": "cancelOrder",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "baseToken", "type": "address" },
+      { "internalType": "address", "name": "quoteToken", "type": "address" }
+    ],
+    "name": "createMarket",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "orderId", "type": "uint256" },
+      { "internalType": "uint256", "name": "baseQuantity", "type": "uint256" }
+    ],
+    "name": "fillOrder",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "orderCounter",
+    "outputs": [
+      { "internalType": "uint256", "name": "", "type": "uint256" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "", "type": "uint256" }
+    ],
+    "name": "orders",
+    "outputs": [
+      { "internalType": "address", "name": "user", "type": "address" },
+      { "internalType": "uint256", "name": "baseQuantity", "type": "uint256" },
+      { "internalType": "uint256", "name": "quoteQuantity", "type": "uint256" },
+      { "internalType": "address", "name": "baseToken", "type": "address" },
+      { "internalType": "address", "name": "quoteToken", "type": "address" },
+      { "internalType": "uint8", "name": "side", "type": "uint8" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "baseToken", "type": "address" },
+      { "internalType": "address", "name": "quoteToken", "type": "address" },
+      { "internalType": "uint8", "name": "side", "type": "uint8" },
+      { "internalType": "uint256", "name": "baseQuantity", "type": "uint256" },
+      { "internalType": "uint256", "name": "quoteQuantity", "type": "uint256" }
+    ],
+    "name": "placeOrder",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "orderId", "type": "uint256" }
+    ],
+    "name": "OrderCanceled",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "orderId", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "baseQuantity", "type": "uint256" }
+    ],
+    "name": "OrderFill",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": false, "internalType": "uint256", "name": "orderId", "type": "uint256" },
+      { "indexed": true, "internalType": "address", "name": "user", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "baseToken", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "quoteToken", "type": "address" },
+      { "indexed": false, "internalType": "uint8", "name": "side", "type": "uint8" },
+      { "indexed": false, "internalType": "uint256", "name": "baseQuantity", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "quoteQuantity", "type": "uint256" }
+    ],
+    "name": "OrderPlaced",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "baseToken", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "quoteToken", "type": "address" },
+      { "indexed": false, "internalType": "address", "name": "bank", "type": "address" }
+    ],
+    "name": "MarketCreated",
+    "type": "event"
+  }
+]

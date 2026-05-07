@@ -1,2 +1,11 @@
 *.bin
 node_modules/
+.anvil.env
+.anvil/
+out/
+cache/
+/dex
+/dex.exe
+/cli_go/dex
+/cli_go/dex.exe
+/.gocache

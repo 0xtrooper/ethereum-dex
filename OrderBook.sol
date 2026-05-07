@@ -69,7 +69,11 @@ contract OrderBook {
 				uint beforeBalance = IERC20(baseToken).balanceOf(bankAddress);
 				IERC20(baseToken).safeTransferFrom(msg.sender, bankAddress, baseQuantity);
 				uint afterBalance = IERC20(baseToken).balanceOf(bankAddress);
-				require(afterBalance - beforeBalance == baseQuantity, "token error: tokens that charge transfer fees are not permitted");
+				uint transferredBaseQuantity = afterBalance - beforeBalance;
+				if (transferredBaseQuantity != baseQuantity) {
+					quoteQuantity = transferredBaseQuantity * quoteQuantity / baseQuantity;
+					baseQuantity = transferredBaseQuantity;
+				}
 			}
 		} else if (side == Side.BUY) {
 			if (msg.value > 0) {
@@ -79,7 +83,11 @@ contract OrderBook {
 				uint beforeBalance = IERC20(quoteToken).balanceOf(bankAddress);
 				IERC20(quoteToken).safeTransferFrom(msg.sender, bankAddress, quoteQuantity);
 				uint afterBalance = IERC20(quoteToken).balanceOf(bankAddress);
-				require(afterBalance - beforeBalance == quoteQuantity, "token error: tokens that charge transfer fees are not permitted");
+				uint transferredQuoteQuantity = afterBalance - beforeBalance;
+				if (transferredQuoteQuantity != quoteQuantity) {
+					baseQuantity = transferredQuoteQuantity * baseQuantity / quoteQuantity;
+					quoteQuantity = transferredQuoteQuantity;
+				}
 			}
 		}
 		uint orderId = ++orderCounter;

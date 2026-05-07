@@ -71,7 +71,6 @@ contract OrderBook {
 				uint afterBalance = IERC20(baseToken).balanceOf(bankAddress);
 				uint transferredBaseQuantity = afterBalance - beforeBalance;
 				if (transferredBaseQuantity != baseQuantity) {
-					quoteQuantity = transferredBaseQuantity * quoteQuantity / baseQuantity;
 					baseQuantity = transferredBaseQuantity;
 				}
 			}
@@ -85,7 +84,6 @@ contract OrderBook {
 				uint afterBalance = IERC20(quoteToken).balanceOf(bankAddress);
 				uint transferredQuoteQuantity = afterBalance - beforeBalance;
 				if (transferredQuoteQuantity != quoteQuantity) {
-					baseQuantity = transferredQuoteQuantity * baseQuantity / quoteQuantity;
 					quoteQuantity = transferredQuoteQuantity;
 				}
 			}

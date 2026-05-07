@@ -32,12 +32,15 @@ type placeOut struct {
 	bankAddress       string
 	createdMarket     bool
 	createMarketTx    string
+	createMarketBlock uint64
 	allowanceAdjusted bool
 	allowanceToken    string
 	allowanceAmount   string
 	allowanceDisplay  string
 	approveTx         string
+	approveBlock      uint64
 	placeOrderTx      string
+	placeOrderBlock   uint64
 }
 
 func newPlaceCommand(cfg *service.Service, ks *service.Keystore) *cobra.Command {
@@ -281,12 +284,19 @@ func processPlace(cmd *cobra.Command, in *placeIn, cfg *service.Service, ks *ser
 			if err != nil {
 				return nil, err
 			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Approve tx submitted: %s\n", approveTx.Hash().Hex())
+			fmt.Fprintln(cmd.OutOrStdout(), "Waiting for approve transaction to be mined...")
+			approveReceipt, err := service.WaitForTxSuccess(ctx, rpcService, approveTx.Hash(), service.DefaultTxWaitTimeout)
+			if err != nil {
+				return nil, err
+			}
 
 			out.allowanceAdjusted = true
 			out.allowanceToken = allowanceRef
 			out.allowanceAmount = approveAmount.String()
 			out.allowanceDisplay = amount.FormatUnits(approveAmount, allowanceDecimals)
 			out.approveTx = approveTx.Hash().Hex()
+			out.approveBlock = approveReceipt.BlockNumber.Uint64()
 		}
 	}
 
@@ -329,8 +339,15 @@ func processPlace(cmd *cobra.Command, in *placeIn, cfg *service.Service, ks *ser
 		if err != nil {
 			return nil, err
 		}
+		fmt.Fprintf(cmd.OutOrStdout(), "Create market tx submitted: %s\n", createTx.Hash().Hex())
+		fmt.Fprintln(cmd.OutOrStdout(), "Waiting for create market transaction to be mined...")
+		createReceipt, err := service.WaitForTxSuccess(ctx, rpcService, createTx.Hash(), service.DefaultTxWaitTimeout)
+		if err != nil {
+			return nil, err
+		}
 		out.createdMarket = true
 		out.createMarketTx = createTx.Hash().Hex()
+		out.createMarketBlock = createReceipt.BlockNumber.Uint64()
 	}
 
 	fmt.Fprintln(cmd.OutOrStdout())
@@ -372,7 +389,14 @@ func processPlace(cmd *cobra.Command, in *placeIn, cfg *service.Service, ks *ser
 	if err != nil {
 		return nil, err
 	}
+	fmt.Fprintf(cmd.OutOrStdout(), "Place order tx submitted: %s\n", placeTx.Hash().Hex())
+	fmt.Fprintln(cmd.OutOrStdout(), "Waiting for place order transaction to be mined...")
+	placeReceipt, err := service.WaitForTxSuccess(ctx, rpcService, placeTx.Hash(), service.DefaultTxWaitTimeout)
+	if err != nil {
+		return nil, err
+	}
 	out.placeOrderTx = placeTx.Hash().Hex()
+	out.placeOrderBlock = placeReceipt.BlockNumber.Uint64()
 
 	return out, nil
 }
@@ -381,13 +405,16 @@ func outputPlace(cmd *cobra.Command, out *placeOut) error {
 	fmt.Fprintf(cmd.OutOrStdout(), "Market bank: %s\n", out.bankAddress)
 	if out.createdMarket {
 		fmt.Fprintf(cmd.OutOrStdout(), "Created market tx: %s\n", out.createMarketTx)
+		fmt.Fprintf(cmd.OutOrStdout(), "Created market mined in block: %d\n", out.createMarketBlock)
 	}
 	if out.allowanceAdjusted {
 		fmt.Fprintf(cmd.OutOrStdout(), "Allowance token: %s\n", out.allowanceToken)
 		fmt.Fprintf(cmd.OutOrStdout(), "Allowance amount: %s (raw: %s)\n", out.allowanceDisplay, out.allowanceAmount)
 		fmt.Fprintf(cmd.OutOrStdout(), "Approve tx: %s\n", out.approveTx)
+		fmt.Fprintf(cmd.OutOrStdout(), "Approve mined in block: %d\n", out.approveBlock)
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "Place order tx: %s\n", out.placeOrderTx)
+	fmt.Fprintf(cmd.OutOrStdout(), "Place order mined in block: %d\n", out.placeOrderBlock)
 	return nil
 }
 

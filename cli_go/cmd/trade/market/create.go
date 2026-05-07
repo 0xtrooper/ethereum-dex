@@ -26,6 +26,7 @@ type createOut struct {
 	marketDeployed bool
 	bankAddress    string
 	txHash         string
+	minedBlock     uint64
 }
 
 func newCreateCommand(cfg *service.Service, ks *service.Keystore) *cobra.Command {
@@ -133,10 +134,17 @@ func processCreate(cmd *cobra.Command, in *createIn, cfg *service.Service, ks *s
 	if err != nil {
 		return nil, err
 	}
+	fmt.Fprintf(cmd.OutOrStdout(), "Create market tx submitted: %s\n", tx.Hash().Hex())
+	fmt.Fprintln(cmd.OutOrStdout(), "Waiting for create market transaction to be mined...")
+	receipt, err := service.WaitForTxSuccess(ctx, rpcService, tx.Hash(), service.DefaultTxWaitTimeout)
+	if err != nil {
+		return nil, err
+	}
 	return &createOut{
 		marketDeployed: false,
 		bankAddress:    bankAddress.Hex(),
 		txHash:         tx.Hash().Hex(),
+		minedBlock:     receipt.BlockNumber.Uint64(),
 	}, nil
 }
 
@@ -146,5 +154,6 @@ func outputCreate(cmd *cobra.Command, out *createOut) error {
 		return nil
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "Create market tx: %s\n", out.txHash)
+	fmt.Fprintf(cmd.OutOrStdout(), "Create market mined in block: %d\n", out.minedBlock)
 	return nil
 }

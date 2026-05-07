@@ -101,6 +101,12 @@ func newSendCommand(cfg *service.Service, ks *service.Keystore) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Send tx submitted: %s\n", tx.Hash().Hex())
+			fmt.Fprintln(cmd.OutOrStdout(), "Waiting for send transaction to be mined...")
+			receipt, err := service.WaitForTxSuccess(context.Background(), rpcService, tx.Hash(), service.DefaultTxWaitTimeout)
+			if err != nil {
+				return err
+			}
 
 			fmt.Fprintf(cmd.OutOrStdout(), "Signer wallet: %s\n", walletService.Address())
 			fmt.Fprintf(cmd.OutOrStdout(), "Token: %s\n", service.FormatTokenRef(meta.Symbol, tokenAddress.Hex()))
@@ -108,6 +114,7 @@ func newSendCommand(cfg *service.Service, ks *service.Keystore) *cobra.Command {
 			fmt.Fprintf(cmd.OutOrStdout(), "Available: %s (raw: %s)\n", amount.FormatUnits(balance, meta.Decimals), balance.String())
 			fmt.Fprintf(cmd.OutOrStdout(), "Amount: %s (raw: %s)\n", amount.FormatUnits(sendAmount, meta.Decimals), sendAmount.String())
 			fmt.Fprintf(cmd.OutOrStdout(), "Send tx: %s\n", tx.Hash().Hex())
+			fmt.Fprintf(cmd.OutOrStdout(), "Send mined in block: %d\n", receipt.BlockNumber.Uint64())
 			return nil
 		},
 	}

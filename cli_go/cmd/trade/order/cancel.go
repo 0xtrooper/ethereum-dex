@@ -21,6 +21,7 @@ type cancelIn struct {
 type cancelOut struct {
 	walletAddress string
 	txHash        string
+	minedBlock    uint64
 }
 
 func newCancelCommand(cfg *service.Service, ks *service.Keystore) *cobra.Command {
@@ -100,18 +101,27 @@ func processCancel(cmd *cobra.Command, in *cancelIn, cfg *service.Service, ks *s
 		return nil, err
 	}
 
-	tx, err := orderbookService.CancelOrder(context.Background(), in.orderID)
+	ctx := context.Background()
+	tx, err := orderbookService.CancelOrder(ctx, in.orderID)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "Cancel tx submitted: %s\n", tx.Hash().Hex())
+	fmt.Fprintln(cmd.OutOrStdout(), "Waiting for cancel transaction to be mined...")
+	receipt, err := service.WaitForTxSuccess(ctx, rpcService, tx.Hash(), service.DefaultTxWaitTimeout)
 	if err != nil {
 		return nil, err
 	}
 	return &cancelOut{
 		walletAddress: walletService.Address(),
 		txHash:        tx.Hash().Hex(),
+		minedBlock:    receipt.BlockNumber.Uint64(),
 	}, nil
 }
 
 func outputCancel(cmd *cobra.Command, out *cancelOut) error {
 	fmt.Fprintf(cmd.OutOrStdout(), "Signer wallet: %s\n", out.walletAddress)
 	fmt.Fprintf(cmd.OutOrStdout(), "Cancel tx: %s\n", out.txHash)
+	fmt.Fprintf(cmd.OutOrStdout(), "Cancel mined in block: %d\n", out.minedBlock)
 	return nil
 }

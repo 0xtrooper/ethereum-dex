@@ -7,15 +7,12 @@ import (
 	"math/big"
 	"os"
 	"strings"
-	"time"
 
 	"dex/internal/amount"
 	"dex/internal/prompt"
 	"dex/service"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +25,8 @@ type fillIn struct {
 }
 
 type fillOut struct {
-	txHash string
+	txHash     string
+	minedBlock uint64
 }
 
 func newFillCommand(cfg *service.Service, ks *service.Keystore) *cobra.Command {
@@ -243,7 +241,8 @@ func processFill(cmd *cobra.Command, in *fillIn, cfg *service.Service, ks *servi
 			return nil, err
 		}
 		fmt.Fprintf(cmd.OutOrStdout(), "Approve tx: %s\n", approveTx.Hash().Hex())
-		if err := fillWaitForTxMined(ctx, rpcService, approveTx); err != nil {
+		fmt.Fprintln(cmd.OutOrStdout(), "Waiting for approve transaction to be mined...")
+		if _, err := service.WaitForTxSuccess(ctx, rpcService, approveTx.Hash(), service.DefaultTxWaitTimeout); err != nil {
 			return nil, fmt.Errorf("approve transaction was not confirmed: %w", err)
 		}
 		fmt.Fprintln(cmd.OutOrStdout(), "Approve confirmed.")
@@ -428,11 +427,18 @@ func processFill(cmd *cobra.Command, in *fillIn, cfg *service.Service, ks *servi
 	if err != nil {
 		return nil, err
 	}
-	return &fillOut{txHash: tx.Hash().Hex()}, nil
+	fmt.Fprintf(cmd.OutOrStdout(), "Fill order tx submitted: %s\n", tx.Hash().Hex())
+	fmt.Fprintln(cmd.OutOrStdout(), "Waiting for fill transaction to be mined...")
+	receipt, err := service.WaitForTxSuccess(ctx, rpcService, tx.Hash(), service.DefaultTxWaitTimeout)
+	if err != nil {
+		return nil, err
+	}
+	return &fillOut{txHash: tx.Hash().Hex(), minedBlock: receipt.BlockNumber.Uint64()}, nil
 }
 
 func outputFill(cmd *cobra.Command, out *fillOut) error {
 	fmt.Fprintf(cmd.OutOrStdout(), "\nFill order tx: %s\n", out.txHash)
+	fmt.Fprintf(cmd.OutOrStdout(), "Fill order mined in block: %d\n", out.minedBlock)
 	return nil
 }
 
@@ -630,25 +636,3 @@ func fillOrderUnavailable(orderValue *service.Order) bool {
 	return false
 }
 
-func fillWaitForTxMined(parent context.Context, rpc *service.RPC, tx *types.Transaction) error {
-	if rpc == nil || rpc.Client() == nil {
-		return fmt.Errorf("rpc service is not initialized")
-	}
-	if tx == nil {
-		return fmt.Errorf("transaction is nil")
-	}
-	waitCtx, cancel := context.WithTimeout(parent, 45*time.Second)
-	defer cancel()
-
-	receipt, err := bind.WaitMined(waitCtx, rpc.Client(), tx)
-	if err != nil {
-		return err
-	}
-	if receipt == nil {
-		return fmt.Errorf("no receipt returned")
-	}
-	if receipt.Status == 0 {
-		return fmt.Errorf("transaction reverted")
-	}
-	return nil
-}

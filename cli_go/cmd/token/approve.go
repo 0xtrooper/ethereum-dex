@@ -96,12 +96,19 @@ func newApproveCommand(cfg *service.Service, ks *service.Keystore) *cobra.Comman
 			if err != nil {
 				return err
 			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Approve tx submitted: %s\n", tx.Hash().Hex())
+			fmt.Fprintln(cmd.OutOrStdout(), "Waiting for approve transaction to be mined...")
+			receipt, err := service.WaitForTxSuccess(context.Background(), rpcService, tx.Hash(), service.DefaultTxWaitTimeout)
+			if err != nil {
+				return err
+			}
 
 			fmt.Fprintf(cmd.OutOrStdout(), "Signer wallet: %s\n", walletService.Address())
 			fmt.Fprintf(cmd.OutOrStdout(), "Token: %s\n", service.FormatTokenRef(meta.Symbol, tokenAddress.Hex()))
 			fmt.Fprintf(cmd.OutOrStdout(), "Spender: %s\n", spenderAddress.Hex())
 			fmt.Fprintf(cmd.OutOrStdout(), "Amount: %s (raw: %s)\n", amount.FormatUnits(approveAmount, meta.Decimals), approveAmount.String())
 			fmt.Fprintf(cmd.OutOrStdout(), "Approve tx: %s\n", tx.Hash().Hex())
+			fmt.Fprintf(cmd.OutOrStdout(), "Approve mined in block: %d\n", receipt.BlockNumber.Uint64())
 			return nil
 		},
 	}

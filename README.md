@@ -4,8 +4,6 @@ This is a fully on-chain decentralized limit order book on Ethereum. The system 
 
 # Setting up a local node
 
-The contracts are complete and can be compiled using the Solidity compiler available [here](https://docs.soliditylang.org/en/latest/installing-solidity.html).
-
 To compile the CLI:
 
 ```
@@ -37,6 +35,15 @@ Flags:
   -h, --help   help for dex
 
 Use "dex [command] --help" for more information about a command.
+```
+
+### Setting the Chain ID
+
+By default the Chain ID is set to Ethereum mainnet (chainId: 1). To change it to a different network (example: arbitrum):
+
+```
+$ ./dex config chain-id 42161
+Set chain_id: 42161
 ```
 
 ### Create a Wallet

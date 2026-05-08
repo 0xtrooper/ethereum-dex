@@ -6,10 +6,9 @@ This is a fully on-chain decentralized limit order book on Ethereum. The system 
 
 The contracts are complete and can be compiled using the Solidity compiler available [here](https://docs.soliditylang.org/en/latest/installing-solidity.html).
 
-The Go CLI is incomplete and needs some work. See the Github issues section for updates on what need to be done. 
-
 To compile the CLI:
 
 ```
+cd cli_go
 go build
 ```

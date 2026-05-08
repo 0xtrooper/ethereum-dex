@@ -17,6 +17,28 @@ A binary called `dex` will be available in the `cli_go` folder.
 
 # CLI Commands
 
+### Help
+
+```
+$ ./dex help
+Decentralized Exchange Command Line Interface.
+
+Usage:
+  dex [command]
+
+Available Commands:
+  config      Manage dex configuration
+  help        Help about any command
+  token       Interact with ERC20 tokens
+  trade       Interact with the exchange order book
+  wallet      Manage wallets
+
+Flags:
+  -h, --help   help for dex
+
+Use "dex [command] --help" for more information about a command.
+```
+
 ### Create a Wallet
 
 ```

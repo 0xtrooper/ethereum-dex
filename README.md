@@ -46,6 +46,16 @@ $ ./dex config chain-id 42161
 Set chain_id: 42161
 ```
 
+### Setting the Contract Address
+
+In the future, we will have default contract addresses stored for many chains. 
+
+For now, contract addresses have to be set manually. 
+
+```
+./dex config contract 0xc026deC188ef7D8B4742CE38E36f3C3BcD328E4C
+```
+
 ### Create a Wallet
 
 ```

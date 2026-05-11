@@ -56,6 +56,16 @@ For now, contract addresses have to be set manually.
 ./dex config contract 0xc026deC188ef7D8B4742CE38E36f3C3BcD328E4C
 ```
 
+### Setting an RPC
+
+The RPC will default to http://localhost:8545 (WIP - for now set manually). To use a remote RPC: 
+
+```
+./dex config rpc https://rpc.flashbots.net
+```
+
+Unless you are using a local node, you will likely need a paid tier RPC to sync orderbooks.
+
 ### Create a Wallet
 
 ```

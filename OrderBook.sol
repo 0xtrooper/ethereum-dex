@@ -140,8 +140,7 @@ contract OrderBook {
 			}
 
 			// if checks pass, forward all incoming ETH to the market's bank
-			(bool ok, ) = payable(bankAddress).call{value: msg.value}("");
-			require(ok); // Must check return value otherwise contract will lose all ETH
+			payable(bankAddress).transfer(msg.value);
 		}
 
 		// There is a re-entrancy possibility in all withdrawTo functions

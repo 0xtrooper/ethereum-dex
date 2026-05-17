@@ -106,7 +106,7 @@ contract OrderBook {
 
 	function cancelOrder(uint orderId) public {
 		Order memory order = orders[orderId];
-		require(msg.sender == order.user && msg.sender != address(0), "users can only cancel their own order / order may not exist");
+		require(msg.sender == order.user, "users can only cancel their own order / order may not exist");
 		delete orders[orderId];
 		address bankAddress = banks[bankhash(order.baseToken, order.quoteToken)];
 

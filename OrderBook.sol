@@ -20,15 +20,14 @@ contract Bank {
 		owner = _owner;
 	}
 
-	// This function forwards all gas during ETH transfers and creates a ton of re-entrancy risk. 
-	// Be sure to use checks-effects-interactions pattern when calling it. 
-	// Failure to do so will result in loss of funds for the contract
+	// This function intentionally uses .transfer instead of .call for ETH transfers
+	// I don't see any benefit to forwarding more gas and would rather restrict the receiver 
+	// in exchange for more security on our end, but I'm open to opinions on it
 	function withdrawTo(address user, address token, uint amount) public {
 		require(msg.sender == owner, "only owner can withdraw funds");
 
 		if (token == address(0)) {
-			(bool ok, ) = payable(user).call{value: amount}(""); 
-			require(ok); // Must check return value otherwise contract will lose all ETH
+			payable(user).transfer(amount);
 		} else {
 			IERC20(token).safeTransfer(user, amount);
 		}

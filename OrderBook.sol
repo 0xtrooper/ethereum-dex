@@ -125,6 +125,11 @@ contract OrderBook {
 		address bankAddress = banks[bankhash(order.baseToken, order.quoteToken)];
 
 		uint quoteQuantity = (baseQuantity * order.quoteQuantity) / order.baseQuantity;
+
+		require(baseQuantity > 0, "zero quantity fills not permitted");
+		require(baseQuantity <= order.baseQuantity, "trying to fill more than order size");
+		require(quoteQuantity > 0, "calculated quote quantity is zero");
+
 		if (msg.value > 0) {
 			if (order.side == Side.SELL) {
 				require(order.quoteToken == address(0), "quote token should be 0x0");
@@ -138,11 +143,6 @@ contract OrderBook {
 			(bool ok, ) = payable(bankAddress).call{value: msg.value}("");
 			require(ok); // Must check return value otherwise contract will lose all ETH
 		}
-
-		require(baseQuantity > 0, "zero quantity fills not permitted");
-		require(baseQuantity <= order.baseQuantity, "trying to fill more than order size");
-		require(quoteQuantity <= order.quoteQuantity, "trying to fill more than order size");
-		require(quoteQuantity > 0, "calculated quote quantity is zero");
 
 		// There is a re-entrancy possibility in all withdrawTo functions
 		// The base and quote quantities are being updated before any withdraws to remove risk

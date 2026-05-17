@@ -124,10 +124,10 @@ contract OrderBook {
 
 		address bankAddress = banks[bankhash(order.baseToken, order.quoteToken)];
 
-		uint quoteQuantity = (baseQuantity * order.quoteQuantity) / order.baseQuantity;
-
 		require(baseQuantity > 0, "zero quantity fills not permitted");
 		require(baseQuantity <= order.baseQuantity, "trying to fill more than order size");
+
+		uint quoteQuantity = (baseQuantity * order.quoteQuantity) / order.baseQuantity;
 		require(quoteQuantity > 0, "calculated quote quantity is zero");
 
 		if (msg.value > 0) {

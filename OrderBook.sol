@@ -24,7 +24,7 @@ contract Bank {
 
 		if (token == address(0)) {
 			(bool ok, ) = payable(user).call{value: amount}("");
-			require(ok);
+			require(ok); // Must check return value otherwise contract will lose all ETH
 		} else {
 			IERC20(token).safeTransfer(user, amount);
 		}
@@ -133,7 +133,7 @@ contract OrderBook {
 
 			// if checks pass, forward all incoming ETH to the market's bank
 			(bool ok, ) = payable(bankAddress).call{value: msg.value}("");
-			require(ok);
+			require(ok); // Must check return value otherwise contract will lose all ETH
 		}
 
 		require(baseQuantity > 0, "zero quantity fills not permitted");

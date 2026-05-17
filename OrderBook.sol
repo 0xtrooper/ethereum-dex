@@ -141,12 +141,18 @@ contract OrderBook {
 
 		require(baseQuantity > 0, "zero quantity fills not permitted");
 		require(baseQuantity <= order.baseQuantity, "trying to fill more than order size");
+		require(quoteQuantity <= order.quoteQuantity, "trying to fill more than order size");
 		require(quoteQuantity > 0, "calculated quote quantity is zero");
+
+		// There is a re-entrancy possibility in all withdrawTo functions
+		// The base and quote quantities are being updated before any withdraws to remove risk
+		// Additionally orders are being deleted when possible to 0 all storage slots for that order
 		orders[orderId].baseQuantity -= baseQuantity;
 		orders[orderId].quoteQuantity -= quoteQuantity;
 		if (orders[orderId].baseQuantity == 0) {
 			delete orders[orderId];
 		}
+
 		if (order.side == Side.SELL) {
 			if (order.quoteToken == address(0)) {
 				Bank(bankAddress).withdrawTo(order.user, address(0), quoteQuantity); // send ETH

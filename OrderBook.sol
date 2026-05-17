@@ -23,7 +23,8 @@ contract Bank {
 		require(msg.sender == owner, "only owner can withdraw funds");
 
 		if (token == address(0)) {
-			payable(user).transfer(amount);
+			(bool ok, ) = payable(user).call{value: amount}("");
+			require(ok);
 		} else {
 			IERC20(token).safeTransfer(user, amount);
 		}
@@ -120,11 +121,6 @@ contract OrderBook {
 
 		address bankAddress = banks[bankhash(order.baseToken, order.quoteToken)];
 
-		// forward all incoming ETH to the market's bank
-		if (msg.value > 0) {
-			payable(bankAddress).transfer(msg.value);
-		}
-
 		uint quoteQuantity = (baseQuantity * order.quoteQuantity) / order.baseQuantity;
 		if (msg.value > 0) {
 			if (order.side == Side.SELL) {
@@ -134,7 +130,12 @@ contract OrderBook {
 				require(order.baseToken == address(0), "base token should be 0x0");
 				require(baseQuantity == msg.value, "mismatch between provided baseQuantity and amount of ETH sent");
 			}
+
+			// if checks pass, forward all incoming ETH to the market's bank
+			(bool ok, ) = payable(bankAddress).call{value: msg.value}("");
+			require(ok);
 		}
+
 		require(baseQuantity > 0, "zero quantity fills not permitted");
 		require(baseQuantity <= order.baseQuantity, "trying to fill more than order size");
 		require(quoteQuantity > 0, "calculated quote quantity is zero");

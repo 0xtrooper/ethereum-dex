@@ -13,7 +13,7 @@ import "./libraries/SafeERC20.sol";
 using SafeERC20 for IERC20;
 
 contract Bank {
-	address owner;
+	address immutable owner;
 
 	constructor(address _owner) {
 		owner = _owner;
@@ -74,9 +74,10 @@ contract OrderBook {
 				require(baseToken == address(0), "base token should be 0x0 when selling ETH");
 				require(baseQuantity == msg.value, "mismatch between provided baseQuantity and amount of ETH sent");
 			} else {
-				uint beforeBalance = IERC20(baseToken).balanceOf(bankAddress);
+				IERC20 baseTokenIERC20 = IERC20(baseToken);
+				uint beforeBalance = baseTokenIERC20.balanceOf(bankAddress);
 				IERC20(baseToken).safeTransferFrom(msg.sender, bankAddress, baseQuantity);
-				uint afterBalance = IERC20(baseToken).balanceOf(bankAddress);
+				uint afterBalance = baseTokenIERC20.balanceOf(bankAddress);
 				uint transferredBaseQuantity = afterBalance - beforeBalance;
 				if (transferredBaseQuantity != baseQuantity) {
 					baseQuantity = transferredBaseQuantity;

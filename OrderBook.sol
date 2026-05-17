@@ -112,7 +112,8 @@ contract OrderBook {
 		delete orders[orderId];
 		address bankAddress = banks[bankhash(order.baseToken, order.quoteToken)];
 
-		// There is a re-entrancy risk here. The order has been deleted ahead of time to prevent hacks
+		// Bank.withdrawTo uses .transfer so there is minimal re-entrancy risk, but orders are being deleted
+		// before withdraws anyway to prevent hijinks within the 2300 forwarded gas 
 		if (order.side == Side.SELL) {
 			Bank(bankAddress).withdrawTo(order.user, order.baseToken, order.baseQuantity);
 		} else if (order.side == Side.BUY) {
@@ -145,8 +146,8 @@ contract OrderBook {
 			payable(bankAddress).transfer(msg.value);
 		}
 
-		// There is a re-entrancy possibility in all withdrawTo functions
-		// The base and quote quantities are being updated before any withdraws to remove risk
+		// Bank.withdrawTo uses .transfer so there is no real re-entrancy risk here, but the
+		// base and quote quantities are being updated before any withdraws to remove risk anyway
 		// Additionally orders are being deleted when possible to 0 all storage slots for that order
 		orders[orderId].baseQuantity -= baseQuantity;
 		orders[orderId].quoteQuantity -= quoteQuantity;

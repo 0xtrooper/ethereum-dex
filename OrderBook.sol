@@ -76,7 +76,7 @@ contract OrderBook {
 			} else {
 				IERC20 baseTokenIERC20 = IERC20(baseToken);
 				uint beforeBalance = baseTokenIERC20.balanceOf(bankAddress);
-				IERC20(baseToken).safeTransferFrom(msg.sender, bankAddress, baseQuantity);
+				baseTokenIERC20.safeTransferFrom(msg.sender, bankAddress, baseQuantity);
 				uint afterBalance = baseTokenIERC20.balanceOf(bankAddress);
 				uint transferredBaseQuantity = afterBalance - beforeBalance;
 				if (transferredBaseQuantity != baseQuantity) {

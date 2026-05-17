@@ -16,6 +16,7 @@ contract Bank {
 	address immutable owner;
 
 	constructor(address _owner) {
+		require (_owner != address(0), "must set owner");
 		owner = _owner;
 	}
 
@@ -105,9 +106,11 @@ contract OrderBook {
 
 	function cancelOrder(uint orderId) public {
 		Order memory order = orders[orderId];
-		require(msg.sender == order.user, "users can only cancel their own order / order may not exist");
+		require(msg.sender == order.user && msg.sender != address(0), "users can only cancel their own order / order may not exist");
 		delete orders[orderId];
 		address bankAddress = banks[bankhash(order.baseToken, order.quoteToken)];
+
+		// There is a re-entrancy risk here. The order has been deleted ahead of time to prevent hacks
 		if (order.side == Side.SELL) {
 			Bank(bankAddress).withdrawTo(order.user, order.baseToken, order.baseQuantity);
 		} else if (order.side == Side.BUY) {

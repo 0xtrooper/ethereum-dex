@@ -92,9 +92,10 @@ contract OrderBook {
 				require(quoteToken == address(0), "quote token should be 0x0 when buying with ETH");
 				require(quoteQuantity == msg.value, "mismatch between provided quoteQuantity and amount of ETH sent");
 			} else {
-				uint beforeBalance = IERC20(quoteToken).balanceOf(bankAddress);
-				IERC20(quoteToken).safeTransferFrom(msg.sender, bankAddress, quoteQuantity);
-				uint afterBalance = IERC20(quoteToken).balanceOf(bankAddress);
+				IERC20 quoteTokenIERC20 = IERC20(quoteToken);
+				uint beforeBalance = quoteTokenIERC20.balanceOf(bankAddress);
+				quoteTokenIERC20.safeTransferFrom(msg.sender, bankAddress, quoteQuantity);
+				uint afterBalance = quoteTokenIERC20.balanceOf(bankAddress);
 				uint transferredQuoteQuantity = afterBalance - beforeBalance;
 				if (transferredQuoteQuantity != quoteQuantity) {
 					quoteQuantity = transferredQuoteQuantity;

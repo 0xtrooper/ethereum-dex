@@ -39,10 +39,10 @@ contract BankTest is Test {
 		USDC.mint(user1, 1000*1e18);
 		vm.prank(user1);
 		uint orderId = orderBook.placeOrder(address(USDC), address(EURT), OrderBook.Side.SELL, 100 * 1e18, 115 * 1e18);
-	        (address user, uint baseQuantity, uint quoteQuantity, address baseToken, address quoteToken, OrderBook.Side side) = orderBook.orders(orderId);
-		assertEq(user, user1, "User should match");
-		assertEq(baseQuantity, 100 * 1e18, "Base Quantity should match");
-		assertEq(quoteQuantity, 115 * 1e18, "Quote Quantity should match");
+	        OrderBook.Order memory order = orderBook.getorder(address(USDC), address(EURT), orderId);
+		assertEq(order.user, user1, "User should match");
+		assertEq(order.baseQuantity, 100 * 1e18, "Base Quantity should match");
+		assertEq(order.quoteQuantity, 115 * 1e18, "Quote Quantity should match");
 	}
 
 	function testPlace2OrdersForGasDifference() public {
@@ -52,10 +52,10 @@ contract BankTest is Test {
 		USDC.mint(user1, 1000*1e18);
 		vm.prank(user1);
 		uint orderId = orderBook.placeOrder(address(USDC), address(EURT), OrderBook.Side.SELL, 100 * 1e18, 115 * 1e18);
-	        (address user, uint baseQuantity, uint quoteQuantity, address baseToken, address quoteToken, OrderBook.Side side) = orderBook.orders(orderId);
-		assertEq(user, user1, "User should match");
-		assertEq(baseQuantity, 100 * 1e18, "Base Quantity should match");
-		assertEq(quoteQuantity, 115 * 1e18, "Quote Quantity should match");
+	        OrderBook.Order memory order = orderBook.getorder(address(USDC), address(EURT), orderId);
+		assertEq(order.user, user1, "User should match");
+		assertEq(order.baseQuantity, 100 * 1e18, "Base Quantity should match");
+		assertEq(order.quoteQuantity, 115 * 1e18, "Quote Quantity should match");
 		vm.prank(user1);
 		orderBook.placeOrder(address(USDC), address(EURT), OrderBook.Side.SELL, 100 * 1e18, 115 * 1e18);
 	}

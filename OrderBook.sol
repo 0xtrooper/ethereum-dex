@@ -6,7 +6,7 @@
 // 
 // THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-pragma solidity ^0.8.1;
+pragma solidity ^0.8.30;
 
 import "./libraries/SafeERC20.sol";
 
@@ -25,9 +25,11 @@ contract Bank {
 	// in exchange for more security on our end, but I'm open to opinions on it
 	function withdrawTo(address user, address token, uint amount) public {
 		require(msg.sender == owner, "only owner can withdraw funds");
+		require(amount > 0, "amount is zero");
 
 		if (token == address(0)) {
-			payable(user).transfer(amount);
+			(bool ok,) = payable(user).call{value: amount, gas: 2300}("");
+			require(ok, "eth transfer failed");
 		} else {
 			IERC20(token).safeTransfer(user, amount);
 		}
@@ -70,7 +72,8 @@ contract OrderBook {
 
 		// forward all incoming ETH to the market's bank
 		if (msg.value > 0) {
-			payable(bankAddress).transfer(msg.value);
+			(bool ok,) = payable(bankAddress).call{value: msg.value, gas: 2300}("");
+			require(ok, "eth transfer to bank failed");
 		}
 
 		if (side == Side.SELL) {
@@ -144,7 +147,8 @@ contract OrderBook {
 			}
 
 			// if checks pass, forward all incoming ETH to the market's bank
-			payable(bankAddress).transfer(msg.value);
+			(bool ok,) = payable(bankAddress).call{value: msg.value, gas: 2300}("");
+			require(ok, "eth transfer to bank failed");
 		}
 
 		// Bank.withdrawTo uses .transfer so there is no real re-entrancy risk here, but the

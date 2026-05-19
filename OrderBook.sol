@@ -67,16 +67,13 @@ contract OrderBook {
 		require(bankAddress != address(0), "createMarket before placing an order on it");
 		require(baseQuantity > 0 && quoteQuantity > 0, "zero quantity orders not permitted");
 
-		// forward all incoming ETH to the market's bank
-		if (msg.value > 0) {
-			(bool ok,) = payable(bankAddress).call{value: msg.value, gas: 2300}("");
-			require(ok, "eth transfer to bank failed");
-		}
-
 		if (side == Side.SELL) {
 			if (msg.value > 0) {
 				require(baseToken == address(0), "base token should be 0x0 when selling ETH");
 				require(baseQuantity == msg.value, "mismatch between provided baseQuantity and amount of ETH sent");
+				(bool ok,) = payable(bankAddress).call{value: msg.value, gas: 2300}("");
+				require(ok, "eth transfer to bank failed");
+
 			} else {
 				IERC20 baseTokenIERC20 = IERC20(baseToken);
 				uint beforeBalance = baseTokenIERC20.balanceOf(bankAddress);
@@ -91,6 +88,8 @@ contract OrderBook {
 			if (msg.value > 0) {
 				require(quoteToken == address(0), "quote token should be 0x0 when buying with ETH");
 				require(quoteQuantity == msg.value, "mismatch between provided quoteQuantity and amount of ETH sent");
+				(bool ok,) = payable(bankAddress).call{value: msg.value, gas: 2300}("");
+				require(ok, "eth transfer to bank failed");
 			} else {
 				IERC20 quoteTokenIERC20 = IERC20(quoteToken);
 				uint beforeBalance = quoteTokenIERC20.balanceOf(bankAddress);

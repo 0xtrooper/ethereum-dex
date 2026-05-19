@@ -63,7 +63,7 @@ contract OrderBook {
 		banks[bankHash] = bankAddress;
 	}
 
-	function placeOrder(address baseToken, address quoteToken, Side side, uint baseQuantity, uint quoteQuantity) external payable {
+	function placeOrder(address baseToken, address quoteToken, Side side, uint baseQuantity, uint quoteQuantity) external payable returns (uint orderId) {
 		address bankAddress = banks[bankhash(baseToken, quoteToken)];
 		require(bankAddress != address(0), "createMarket before placing an order on it");
 		require(baseQuantity > 0 && quoteQuantity > 0, "zero quantity orders not permitted");
@@ -103,7 +103,7 @@ contract OrderBook {
 				}
 			}
 		}
-		uint orderId = ++orderCounter;
+		orderId = ++orderCounter;
 		orders[orderId] = Order(msg.sender, baseQuantity, quoteQuantity, baseToken, quoteToken, side);
 		emit OrderPlaced(orderId, msg.sender, baseToken, quoteToken, side, baseQuantity, quoteQuantity);
 	}

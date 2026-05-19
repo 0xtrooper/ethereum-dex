@@ -69,10 +69,18 @@ contract OrderBookTest is Test {
 		vm.deal(user1, 2e18);
 		vm.prank(user1);
 		uint orderId = orderBook.placeOrder{value: 1e18}(address(0), address(USDC), OrderBook.Side.SELL, 1e18, 2150e6);
-	        //OrderBook.Order memory order = orderBook.getorder(address(0), address(USDC), orderId);
-		//assertEq(order.user, user1, "User should match");
-		//assertEq(order.baseQuantity, 1 * 1e18, "Base Quantity should match");
-		//assertEq(order.quoteQuantity, 2150 * 1e6, "Quote Quantity should match");
+	        OrderBook.Order memory order = orderBook.getorder(address(0), address(USDC), orderId);
+		assertEq(order.user, user1, "User should match");
+		assertEq(order.baseQuantity, 1 * 1e18, "Base Quantity should match");
+		assertEq(order.quoteQuantity, 2150 * 1e6, "Quote Quantity should match");
+	}
+
+	function testPlace2ETHOrdersForGasDifference() public {
+		orderBook.createMarket(address(0), address(USDC));
+		vm.deal(user1, 2e18);
+		vm.prank(user1);
+		orderBook.placeOrder{value: 1e18}(address(0), address(USDC), OrderBook.Side.SELL, 1e18, 2150e6);
+		orderBook.placeOrder{value: 1e18}(address(0), address(USDC), OrderBook.Side.SELL, 1e18, 2150e6);
 	}
 
 	function testPlace2OrdersForGasDifference() public {

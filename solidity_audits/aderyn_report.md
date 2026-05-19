@@ -87,6 +87,8 @@ Changing state after an external call can lead to re-entrancy attacks.Use the ch
 
 - Found in OrderBook.sol [Line: 151](OrderBook.sol#L151)
 
+    Note from k26dr: bankAddress is an internal contract created and owned by OrderBook.sol so no re-entrancy can occur there. Plus gas is restricted to 2300 just in case.
+
 	State is changed at: `orders[orderId].baseQuantity -= baseQuantity`, `orders[orderId].quoteQuantity -= quoteQuantity`, `delete orders[orderId]`
 	```solidity
 				(bool ok,) = payable(bankAddress).call{value: msg.value, gas: 2300}("");

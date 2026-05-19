@@ -1,28 +1,28 @@
 INFO:Detectors:
 Detector: reentrancy-eth
-Reentrancy in OrderBook.fillOrder(uint256,uint256) (OrderBook.sol#130-180):
-EXPLANATION (k26dr): bankAddress is an internal contract created and owned by OrderBook.sol so no re-entrancy can occur there. Plus gas is restricted to 2300 just in case.
+Reentrancy in OrderBook.fillOrder(uint256,uint256) (OrderBook.sol#129-179):
+	EXPLANATION (k26dr): bankAddress is an internal contract created and owned by OrderBook.sol so no re-entrancy can occur there. Plus gas is restricted to 2300 just in case.
 	External calls:
-	- (ok,None) = address(bankAddress).call{gas: 2300,value: msg.value}() (OrderBook.sol#151)
+	- (ok,None) = address(bankAddress).call{gas: 2300,value: msg.value}() (OrderBook.sol#150)
 	State variables written after the call(s):
-	- orders[orderId].baseQuantity -= baseQuantity (OrderBook.sol#158)
+	- orders[orderId].baseQuantity -= baseQuantity (OrderBook.sol#157)
 	OrderBook.orders (OrderBook.sol#53) can be used in cross function reentrancies:
-	- OrderBook.cancelOrder(uint256) (OrderBook.sol#114-128)
-	- OrderBook.fillOrder(uint256,uint256) (OrderBook.sol#130-180)
+	- OrderBook.cancelOrder(uint256) (OrderBook.sol#113-127)
+	- OrderBook.fillOrder(uint256,uint256) (OrderBook.sol#129-179)
 	- OrderBook.orders (OrderBook.sol#53)
-	- OrderBook.placeOrder(address,address,OrderBook.Side,uint256,uint256) (OrderBook.sol#68-112)
-	- orders[orderId].quoteQuantity -= quoteQuantity (OrderBook.sol#159)
+	- OrderBook.placeOrder(address,address,OrderBook.Side,uint256,uint256) (OrderBook.sol#68-111)
+	- orders[orderId].quoteQuantity -= quoteQuantity (OrderBook.sol#158)
 	OrderBook.orders (OrderBook.sol#53) can be used in cross function reentrancies:
-	- OrderBook.cancelOrder(uint256) (OrderBook.sol#114-128)
-	- OrderBook.fillOrder(uint256,uint256) (OrderBook.sol#130-180)
+	- OrderBook.cancelOrder(uint256) (OrderBook.sol#113-127)
+	- OrderBook.fillOrder(uint256,uint256) (OrderBook.sol#129-179)
 	- OrderBook.orders (OrderBook.sol#53)
-	- OrderBook.placeOrder(address,address,OrderBook.Side,uint256,uint256) (OrderBook.sol#68-112)
-	- delete orders[orderId] (OrderBook.sol#161)
+	- OrderBook.placeOrder(address,address,OrderBook.Side,uint256,uint256) (OrderBook.sol#68-111)
+	- delete orders[orderId] (OrderBook.sol#160)
 	OrderBook.orders (OrderBook.sol#53) can be used in cross function reentrancies:
-	- OrderBook.cancelOrder(uint256) (OrderBook.sol#114-128)
-	- OrderBook.fillOrder(uint256,uint256) (OrderBook.sol#130-180)
+	- OrderBook.cancelOrder(uint256) (OrderBook.sol#113-127)
+	- OrderBook.fillOrder(uint256,uint256) (OrderBook.sol#129-179)
 	- OrderBook.orders (OrderBook.sol#53)
-	- OrderBook.placeOrder(address,address,OrderBook.Side,uint256,uint256) (OrderBook.sol#68-112)
+	- OrderBook.placeOrder(address,address,OrderBook.Side,uint256,uint256) (OrderBook.sol#68-111)
 Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-1
 INFO:Detectors:
 Detector: missing-zero-check
@@ -31,36 +31,37 @@ Bank.withdrawTo(address,address,uint256).user (OrderBook.sol#26) lacks a zero-ch
 Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#missing-zero-address-validation
 INFO:Detectors:
 Detector: reentrancy-benign
-Reentrancy in OrderBook.placeOrder(address,address,OrderBook.Side,uint256,uint256) (OrderBook.sol#68-112):
+Reentrancy in OrderBook.placeOrder(address,address,OrderBook.Side,uint256,uint256) (OrderBook.sol#68-111):
 	External calls:
-	- (ok,None) = address(bankAddress).call{gas: 2300,value: msg.value}() (OrderBook.sol#77)
+	- (ok,None) = address(bankAddress).call{gas: 2300,value: msg.value}() (OrderBook.sol#75)
 	State variables written after the call(s):
-	- orders[orderId] = Order(msg.sender,baseQuantity,quoteQuantity,baseToken,quoteToken,side) (OrderBook.sol#110)
+	- orderId = ++ orderCounter (OrderBook.sol#108)
+	- orders[orderId] = Order(msg.sender,baseQuantity,quoteQuantity,baseToken,quoteToken,side) (OrderBook.sol#109)
 Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-3
 INFO:Detectors:
 Detector: reentrancy-events
-Reentrancy in OrderBook.cancelOrder(uint256) (OrderBook.sol#114-128):
+Reentrancy in OrderBook.cancelOrder(uint256) (OrderBook.sol#113-127):
 	External calls:
-	- Bank(bankAddress).withdrawTo(order.user,order.baseToken,order.baseQuantity) (OrderBook.sol#123)
-	- Bank(bankAddress).withdrawTo(order.user,order.quoteToken,order.quoteQuantity) (OrderBook.sol#125)
+	- Bank(bankAddress).withdrawTo(order.user,order.baseToken,order.baseQuantity) (OrderBook.sol#122)
+	- Bank(bankAddress).withdrawTo(order.user,order.quoteToken,order.quoteQuantity) (OrderBook.sol#124)
 	Event emitted after the call(s):
-	- OrderCanceled(orderId) (OrderBook.sol#127)
-Reentrancy in OrderBook.fillOrder(uint256,uint256) (OrderBook.sol#130-180):
+	- OrderCanceled(orderId) (OrderBook.sol#126)
+Reentrancy in OrderBook.fillOrder(uint256,uint256) (OrderBook.sol#129-179):
 	External calls:
-	- (ok,None) = address(bankAddress).call{gas: 2300,value: msg.value}() (OrderBook.sol#151)
-	- Bank(bankAddress).withdrawTo(order.user,address(0),quoteQuantity) (OrderBook.sol#166)
-	- Bank(bankAddress).withdrawTo(msg.sender,order.baseToken,baseQuantity) (OrderBook.sol#170)
-	- Bank(bankAddress).withdrawTo(order.user,address(0),baseQuantity) (OrderBook.sol#173)
-	- Bank(bankAddress).withdrawTo(msg.sender,order.quoteToken,quoteQuantity) (OrderBook.sol#177)
+	- (ok,None) = address(bankAddress).call{gas: 2300,value: msg.value}() (OrderBook.sol#150)
+	- Bank(bankAddress).withdrawTo(order.user,address(0),quoteQuantity) (OrderBook.sol#165)
+	- Bank(bankAddress).withdrawTo(msg.sender,order.baseToken,baseQuantity) (OrderBook.sol#169)
+	- Bank(bankAddress).withdrawTo(order.user,address(0),baseQuantity) (OrderBook.sol#172)
+	- Bank(bankAddress).withdrawTo(msg.sender,order.quoteToken,quoteQuantity) (OrderBook.sol#176)
 	External calls sending eth:
-	- (ok,None) = address(bankAddress).call{gas: 2300,value: msg.value}() (OrderBook.sol#151)
+	- (ok,None) = address(bankAddress).call{gas: 2300,value: msg.value}() (OrderBook.sol#150)
 	Event emitted after the call(s):
-	- OrderFill(orderId,baseQuantity) (OrderBook.sol#179)
-Reentrancy in OrderBook.placeOrder(address,address,OrderBook.Side,uint256,uint256) (OrderBook.sol#68-112):
+	- OrderFill(orderId,baseQuantity) (OrderBook.sol#178)
+Reentrancy in OrderBook.placeOrder(address,address,OrderBook.Side,uint256,uint256) (OrderBook.sol#68-111):
 	External calls:
-	- (ok,None) = address(bankAddress).call{gas: 2300,value: msg.value}() (OrderBook.sol#77)
+	- (ok,None) = address(bankAddress).call{gas: 2300,value: msg.value}() (OrderBook.sol#75)
 	Event emitted after the call(s):
-	- OrderPlaced(orderId,msg.sender,baseToken,quoteToken,side,baseQuantity,quoteQuantity) (OrderBook.sol#111)
+	- OrderPlaced(orderId,msg.sender,baseToken,quoteToken,side,baseQuantity,quoteQuantity) (OrderBook.sol#110)
 Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-4
 INFO:Detectors:
 Detector: return-bomb
@@ -143,10 +144,10 @@ INFO:Detectors:
 Detector: low-level-calls
 Low level call in Bank.withdrawTo(address,address,uint256) (OrderBook.sol#26-36):
 	- (ok,None) = address(user).call{gas: 2300,value: amount}() (OrderBook.sol#31)
-Low level call in OrderBook.placeOrder(address,address,OrderBook.Side,uint256,uint256) (OrderBook.sol#68-112):
-	- (ok,None) = address(bankAddress).call{gas: 2300,value: msg.value}() (OrderBook.sol#77)
-Low level call in OrderBook.fillOrder(uint256,uint256) (OrderBook.sol#130-180):
-	- (ok,None) = address(bankAddress).call{gas: 2300,value: msg.value}() (OrderBook.sol#151)
+Low level call in OrderBook.placeOrder(address,address,OrderBook.Side,uint256,uint256) (OrderBook.sol#68-111):
+	- (ok,None) = address(bankAddress).call{gas: 2300,value: msg.value}() (OrderBook.sol#75)
+Low level call in OrderBook.fillOrder(uint256,uint256) (OrderBook.sol#129-179):
+	- (ok,None) = address(bankAddress).call{gas: 2300,value: msg.value}() (OrderBook.sol#150)
 Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#low-level-calls
 INFO:Slither:OrderBook.sol analyzed (7 contracts with 101 detectors), 18 result(s) found
 

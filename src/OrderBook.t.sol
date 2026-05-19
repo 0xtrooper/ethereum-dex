@@ -57,6 +57,10 @@ contract OrderBookTest is Test {
 		assertEq(order.user, user1, "User should match");
 		assertEq(order.baseQuantity, 100 * 1e18, "Base Quantity should match");
 		assertEq(order.quoteQuantity, 115 * 1e18, "Quote Quantity should match");
+		bytes32 bankHash = orderBook.bankhash(address(USDC), address(EURT));
+		address payable bank = orderBook.banks(bankHash);
+		uint bankUsdcBalance = USDC.balanceOf(bank);
+		assertEq(bankUsdcBalance, 100e18);
 	}
 
 	function testBankHash() public view {
@@ -111,6 +115,69 @@ contract OrderBookTest is Test {
 		assertEq(order.quoteQuantity, 115 * 1e18, "Quote Quantity should match");
 		vm.prank(user1);
 		orderBook.cancelOrder(address(USDC), address(EURT), orderId);
+	        order = orderBook.getorder(address(USDC), address(EURT), orderId);
+		assertEq(order.user, address(0), "User should be deleted");
+		assertEq(order.baseQuantity, 0, "Base Quantity should be deleted");
+		assertEq(order.quoteQuantity, 0, "Quote Quantity should be deleted");
+	}
+
+	function testDoubleCancelOrderFail() public {
+		orderBook.createMarket(address(USDC), address(EURT));
+		vm.prank(user1);
+		USDC.approve(address(orderBook), 300e18);
+		USDC.mint(user1, 1000*1e18);
+		vm.prank(user1);
+		uint orderId = orderBook.placeOrder(address(USDC), address(EURT), OrderBook.Side.SELL, 100 * 1e18, 115 * 1e18);
+	        OrderBook.Order memory order = orderBook.getorder(address(USDC), address(EURT), orderId);
+		assertEq(order.user, user1, "User should match");
+		assertEq(order.baseQuantity, 100 * 1e18, "Base Quantity should match");
+		assertEq(order.quoteQuantity, 115 * 1e18, "Quote Quantity should match");
+		vm.prank(user1);
+		orderBook.cancelOrder(address(USDC), address(EURT), orderId);
+	        order = orderBook.getorder(address(USDC), address(EURT), orderId);
+		assertEq(order.user, address(0), "User should be deleted");
+		assertEq(order.baseQuantity, 0, "Base Quantity should be deleted");
+		assertEq(order.quoteQuantity, 0, "Quote Quantity should be deleted");
+		vm.expectRevert("users can only cancel their own order / order may not exist");
+		orderBook.cancelOrder(address(USDC), address(EURT), orderId);
+	}
+	
+	function testCancelOrderWrongUserFail() public {
+		orderBook.createMarket(address(USDC), address(EURT));
+		vm.prank(user1);
+		USDC.approve(address(orderBook), 300e18);
+		USDC.mint(user1, 1000*1e18);
+		vm.prank(user1);
+		uint orderId = orderBook.placeOrder(address(USDC), address(EURT), OrderBook.Side.SELL, 100 * 1e18, 115 * 1e18);
+	        OrderBook.Order memory order = orderBook.getorder(address(USDC), address(EURT), orderId);
+		assertEq(order.user, user1, "User should match");
+		assertEq(order.baseQuantity, 100 * 1e18, "Base Quantity should match");
+		assertEq(order.quoteQuantity, 115 * 1e18, "Quote Quantity should match");
+		vm.prank(user2);
+		vm.expectRevert("users can only cancel their own order / order may not exist");
+		orderBook.cancelOrder(address(USDC), address(EURT), orderId);
+	}
+
+	function testPartialFillOrder() public {
+		orderBook.createMarket(address(EURT), address(USDC));
+		vm.prank(user1);
+		EURT.approve(address(orderBook), 300e6);
+		EURT.mint(user1, 1000*1e6);
+		vm.prank(user1);
+		uint orderId = orderBook.placeOrder(address(EURT), address(USDC), OrderBook.Side.SELL, 115 * 1e6, 100 * 1e6);
+	        OrderBook.Order memory order = orderBook.getorder(address(EURT), address(USDC), orderId);
+		assertEq(order.user, user1, "User should match");
+		assertEq(order.baseQuantity, 115 * 1e6, "Base Quantity should match");
+		assertEq(order.quoteQuantity, 100 * 1e6, "Quote Quantity should match");
+		vm.prank(user2);
+		USDC.approve(address(orderBook), 400e6);
+		USDC.mint(user2, 1000e6);
+		vm.prank(user2);
+		orderBook.fillOrder(orderId, address(EURT), address(USDC), 100e6);
+	        order = orderBook.getorder(address(EURT), address(USDC), orderId);
+		assertEq(order.user, user1, "User should be user who placed order");
+		assertEq(order.baseQuantity, 15e6, "Remaining Base Quantity is wrong");
+		assertEq(order.quoteQuantity, 100e6 - uint(100e6) * uint(100e6) / uint(115e6), "Remaining Quote Quantity is wrong");
 	}
 	
 }

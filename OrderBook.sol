@@ -23,7 +23,7 @@ contract Bank {
 	// This function intentionally uses .transfer instead of .call for ETH transfers
 	// I don't see any benefit to forwarding more gas and would rather restrict the receiver 
 	// in exchange for more security on our end, but I'm open to opinions on it
-	function withdrawTo(address user, address token, uint amount) public {
+	function withdrawTo(address user, address token, uint amount) external {
 		require(msg.sender == owner, "only owner can withdraw funds");
 		require(amount > 0, "amount is zero");
 
@@ -57,7 +57,7 @@ contract OrderBook {
 	event OrderCanceled(uint indexed orderId);
 	event OrderFill(uint indexed orderId, uint baseQuantity);
 
-	function createMarket(address baseToken, address quoteToken) public {
+	function createMarket(address baseToken, address quoteToken) external {
 		bytes32 bankHash = bankhash(baseToken, quoteToken);
 		require(banks[bankHash] == address(0), "market has already been created");
 
@@ -65,7 +65,7 @@ contract OrderBook {
 		banks[bankHash] = bankAddress;
 	}
 
-	function placeOrder(address baseToken, address quoteToken, Side side, uint baseQuantity, uint quoteQuantity) public payable {
+	function placeOrder(address baseToken, address quoteToken, Side side, uint baseQuantity, uint quoteQuantity) external payable {
 		address bankAddress = banks[bankhash(baseToken, quoteToken)];
 		require(bankAddress != address(0), "createMarket before placing an order on it");
 		require(baseQuantity > 0 && quoteQuantity > 0, "zero quantity orders not permitted");
@@ -110,7 +110,7 @@ contract OrderBook {
 		emit OrderPlaced(orderId, msg.sender, baseToken, quoteToken, side, baseQuantity, quoteQuantity);
 	}
 
-	function cancelOrder(uint orderId) public {
+	function cancelOrder(uint orderId) external {
 		Order memory order = orders[orderId];
 		require(msg.sender == order.user, "users can only cancel their own order / order may not exist");
 		delete orders[orderId];
@@ -126,7 +126,7 @@ contract OrderBook {
 		emit OrderCanceled(orderId);
 	}
 
-	function fillOrder(uint orderId, uint baseQuantity) public payable {
+	function fillOrder(uint orderId, uint baseQuantity) external payable {
 		Order memory order = orders[orderId];
 
 		address bankAddress = banks[bankhash(order.baseToken, order.quoteToken)];

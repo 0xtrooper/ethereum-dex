@@ -48,7 +48,7 @@ contract OrderBook {
 		Side side;
 	}
 	mapping(bytes32 => address payable) public banks;
-	mapping(bytes32 => mapping(uint => Order)) orders;
+	mapping(address => mapping(address => mapping(uint => Order))) orders; // baseToken -> quoteToken -> orderId
 	uint public orderCounter = 0;
 
 	event OrderPlaced(uint indexed orderId, address indexed user, address baseToken, address quoteToken, bytes32 indexed markethash, Side side, uint baseQuantity, uint quoteQuantity);
@@ -106,15 +106,15 @@ contract OrderBook {
 		unchecked {
 			orderId = ++orderCounter;
 		}
-		orders[bankHash][orderId] = Order(msg.sender, baseQuantity, quoteQuantity, side);
+		orders[baseToken][quoteToken][orderId] = Order(msg.sender, baseQuantity, quoteQuantity, side);
 		emit OrderPlaced(orderId, msg.sender, baseToken, quoteToken, bankHash, side, baseQuantity, quoteQuantity);
 	}
 
 	function cancelOrder(address baseToken, address quoteToken, uint orderId) external {
-		bytes32 bankHash = bankhash(baseToken, quoteToken);
-		Order memory order = orders[bankHash][orderId];
+		Order memory order = orders[baseToken][quoteToken][orderId];
 		require(msg.sender == order.user, "users can only cancel their own order / order may not exist");
-		delete orders[bankHash][orderId];
+		delete orders[baseToken][quoteToken][orderId];
+		bytes32 bankHash = bankhash(baseToken, quoteToken);
 		address payable bankAddress = banks[bankHash];
 
 		// Bank.withdrawTo is gas limited so there is minimal re-entrancy risk, but orders are being deleted
@@ -128,9 +128,9 @@ contract OrderBook {
 	}
 
 	function fillOrder(uint orderId, address baseToken, address quoteToken, uint baseQuantity) external payable {
-		bytes32 bankHash = bankhash(baseToken, quoteToken);
-		Order memory order = orders[bankHash][orderId];
+		Order memory order = orders[baseToken][quoteToken][orderId];
 
+		bytes32 bankHash = bankhash(baseToken, quoteToken);
 		address payable bankAddress = banks[bankHash];
 
 		require(baseQuantity > 0, "zero quantity fills not permitted");
@@ -156,10 +156,10 @@ contract OrderBook {
 		// Bank.withdrawTo is gas limited so there is no real re-entrancy risk here, but the
 		// base and quote quantities are being updated before any withdraws to remove risk anyway
 		// Additionally orders are being deleted when possible to 0 all storage slots for that order
-		orders[bankHash][orderId].baseQuantity -= baseQuantity;
-		orders[bankHash][orderId].quoteQuantity -= quoteQuantity;
-		if (orders[bankHash][orderId].baseQuantity == 0) {
-			delete orders[bankHash][orderId];
+		orders[baseToken][quoteToken][orderId].baseQuantity -= baseQuantity;
+		orders[baseToken][quoteToken][orderId].quoteQuantity -= quoteQuantity;
+		if (orders[baseToken][quoteToken][orderId].baseQuantity == 0) {
+			delete orders[baseToken][quoteToken][orderId];
 		}
 
 		if (order.side == Side.SELL) {
@@ -185,7 +185,6 @@ contract OrderBook {
 	}
 
 	function getorder(address baseToken, address quoteToken, uint orderId) external view returns (Order memory) {
-		bytes32 bankHash = bankhash(baseToken, quoteToken);
-		return orders[bankHash][orderId];
+		return orders[baseToken][quoteToken][orderId];
 	}
 }

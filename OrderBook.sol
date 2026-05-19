@@ -20,6 +20,8 @@ contract Bank {
 		owner = _owner;
 	}
 
+	receive() external payable {}
+
 	// This function limits the gas forwarded on ETH transfers to prevent re-entrancy
 	function withdrawTo(address user, address token, uint amount) external {
 		require(msg.sender == owner, "only owner can withdraw funds");
@@ -45,7 +47,7 @@ contract OrderBook {
 		uint quoteQuantity;
 		Side side;
 	}
-	mapping(bytes32 => address) public banks;
+	mapping(bytes32 => address payable) public banks;
 	mapping(bytes32 => mapping(uint => Order)) orders;
 	uint public orderCounter = 0;
 
@@ -57,7 +59,7 @@ contract OrderBook {
 		bytes32 bankHash = bankhash(baseToken, quoteToken);
 		require(banks[bankHash] == address(0), "market has already been created");
 
-		address bankAddress = address(new Bank(address(this)));
+		address payable bankAddress = payable(address(new Bank(address(this))));
 		banks[bankHash] = bankAddress;
 	}
 
@@ -111,7 +113,7 @@ contract OrderBook {
 		Order memory order = orders[bankHash][orderId];
 		require(msg.sender == order.user, "users can only cancel their own order / order may not exist");
 		delete orders[bankHash][orderId];
-		address bankAddress = banks[bankHash];
+		address payable bankAddress = banks[bankHash];
 
 		// Bank.withdrawTo is gas limited so there is minimal re-entrancy risk, but orders are being deleted
 		// before withdraws anyway to prevent hijinks within the 2300 forwarded gas 
@@ -127,7 +129,7 @@ contract OrderBook {
 		bytes32 bankHash = bankhash(baseToken, quoteToken);
 		Order memory order = orders[bankHash][orderId];
 
-		address bankAddress = banks[bankHash];
+		address payable bankAddress = banks[bankHash];
 
 		require(baseQuantity > 0, "zero quantity fills not permitted");
 		require(baseQuantity <= order.baseQuantity, "trying to fill more than order size");

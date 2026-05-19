@@ -51,7 +51,7 @@ contract OrderBook {
 	mapping(bytes32 => mapping(uint => Order)) orders;
 	uint public orderCounter = 0;
 
-	event OrderPlaced(uint indexed orderId, address indexed user, address baseToken, address quoteToken, bytes32 indexed markethash, Side side, uint baseQuantity, uint quoteQuantity);
+	event OrderPlaced(uint orderId, address indexed user, address indexed baseToken, address indexed quoteToken, Side side, uint baseQuantity, uint quoteQuantity);
 	event OrderCanceled(uint indexed orderId);
 	event OrderFill(uint indexed orderId, uint baseQuantity);
 
@@ -107,7 +107,7 @@ contract OrderBook {
 			orderId = ++orderCounter;
 		}
 		orders[bankHash][orderId] = Order(msg.sender, baseQuantity, quoteQuantity, side);
-		emit OrderPlaced(orderId, msg.sender, baseToken, quoteToken, bankHash, side, baseQuantity, quoteQuantity);
+		emit OrderPlaced(orderId, msg.sender, baseToken, quoteToken, side, baseQuantity, quoteQuantity);
 	}
 
 	function cancelOrder(address baseToken, address quoteToken, uint orderId) external {

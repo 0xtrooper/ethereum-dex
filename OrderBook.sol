@@ -70,6 +70,8 @@ contract OrderBook {
 		require(bankAddress != address(0), "createMarket before placing an order on it");
 		require(baseQuantity > 0 && quoteQuantity > 0, "zero quantity orders not permitted");
 
+		uint orderId = ++orderCounter;
+
 		// forward all incoming ETH to the market's bank
 		if (msg.value > 0) {
 			(bool ok,) = payable(bankAddress).call{value: msg.value, gas: 2300}("");
@@ -105,7 +107,6 @@ contract OrderBook {
 				}
 			}
 		}
-		uint orderId = ++orderCounter;
 		orders[orderId] = Order(msg.sender, baseQuantity, quoteQuantity, baseToken, quoteToken, side);
 		emit OrderPlaced(orderId, msg.sender, baseToken, quoteToken, side, baseQuantity, quoteQuantity);
 	}

@@ -34,8 +34,7 @@ contract OrderBookTest is Test {
 	
 	function testBankWithdrawToFail() public {
 		orderBook.createMarket(address(EURT), address(USDC));
-		bytes32 bankHash = orderBook.bankhash(address(EURT), address(USDC));
-		address payable bank = orderBook.banks(bankHash);
+		address payable bank = orderBook.getBankAddress(address(EURT), address(USDC));
 		vm.expectRevert("only owner can withdraw funds");
 		Bank(bank).withdrawTo(user1, address(0), 1e18);
 	}
@@ -57,15 +56,9 @@ contract OrderBookTest is Test {
 		assertEq(order.user, user1, "User should match");
 		assertEq(order.baseQuantity, 100 * 1e18, "Base Quantity should match");
 		assertEq(order.quoteQuantity, 115 * 1e18, "Quote Quantity should match");
-		bytes32 bankHash = orderBook.bankhash(address(USDC), address(EURT));
-		address payable bank = orderBook.banks(bankHash);
+		address payable bank = orderBook.getBankAddress(address(USDC), address(EURT));
 		uint bankUsdcBalance = USDC.balanceOf(bank);
 		assertEq(bankUsdcBalance, 100e18);
-	}
-
-	function testBankHash() public view {
-		assertEq(bytes32(0xead70e2fa0ea60acdf1562c2bc09f0525cb2add475c45b55a0b296a8ea02a8f4), orderBook.bankhash(address(0), address(USDC)));
-		assertEq(bytes32(0xdfa8f666370cc44e5e24a578c2d2e8407b7753e2f90ff46cc10a2e84e8a2a071), orderBook.bankhash(address(EURT), address(USDC)));
 	}
 
 	function testPlaceETHOrder() public {

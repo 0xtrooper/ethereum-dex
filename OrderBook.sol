@@ -47,8 +47,8 @@ contract OrderBook {
 		uint quoteQuantity;
 		Side side;
 	}
-	mapping(bytes32 => address payable) public banks;
-	mapping(address => mapping(address => mapping(uint => Order))) orders; // baseToken -> quoteToken -> orderId
+	mapping(address => mapping(address => address payable)) banks; // baseToken -> quoteToken -> bankAddress
+	mapping(address => mapping(address => mapping(uint => Order))) orders; // baseToken -> quoteToken -> orderId -> Order
 	uint public orderCounter = 0;
 
 	event OrderPlaced(uint indexed orderId, address indexed user, address baseToken, address quoteToken, bytes32 indexed markethash, Side side, uint baseQuantity, uint quoteQuantity);
@@ -56,16 +56,14 @@ contract OrderBook {
 	event OrderFill(uint indexed orderId, uint baseQuantity);
 
 	function createMarket(address baseToken, address quoteToken) external {
-		bytes32 bankHash = bankhash(baseToken, quoteToken);
-		require(banks[bankHash] == address(0), "market has already been created");
+		require(banks[baseToken][quoteToken] == address(0), "market has already been created");
 
 		address payable bankAddress = payable(address(new Bank(address(this))));
-		banks[bankHash] = bankAddress;
+		banks[baseToken][quoteToken] = bankAddress;
 	}
 
 	function placeOrder(address baseToken, address quoteToken, Side side, uint baseQuantity, uint quoteQuantity) external payable returns (uint orderId) {
-		bytes32 bankHash = bankhash(baseToken, quoteToken);
-		address bankAddress = banks[bankHash];
+		address bankAddress = banks[baseToken][quoteToken];
 		require(bankAddress != address(0), "createMarket before placing an order on it");
 		require(baseQuantity > 0 && quoteQuantity > 0, "zero quantity orders not permitted");
 
@@ -107,15 +105,15 @@ contract OrderBook {
 			orderId = ++orderCounter;
 		}
 		orders[baseToken][quoteToken][orderId] = Order(msg.sender, baseQuantity, quoteQuantity, side);
-		emit OrderPlaced(orderId, msg.sender, baseToken, quoteToken, bankHash, side, baseQuantity, quoteQuantity);
+		bytes32 markethash = keccak256(abi.encodePacked(baseToken, quoteToken));
+		emit OrderPlaced(orderId, msg.sender, baseToken, quoteToken, markethash, side, baseQuantity, quoteQuantity);
 	}
 
 	function cancelOrder(address baseToken, address quoteToken, uint orderId) external {
 		Order memory order = orders[baseToken][quoteToken][orderId];
 		require(msg.sender == order.user, "users can only cancel their own order / order may not exist");
 		delete orders[baseToken][quoteToken][orderId];
-		bytes32 bankHash = bankhash(baseToken, quoteToken);
-		address payable bankAddress = banks[bankHash];
+		address payable bankAddress = banks[baseToken][quoteToken];
 
 		// Bank.withdrawTo is gas limited so there is minimal re-entrancy risk, but orders are being deleted
 		// before withdraws anyway to prevent hijinks within the 2300 forwarded gas 
@@ -130,8 +128,7 @@ contract OrderBook {
 	function fillOrder(uint orderId, address baseToken, address quoteToken, uint baseQuantity) external payable {
 		Order memory order = orders[baseToken][quoteToken][orderId];
 
-		bytes32 bankHash = bankhash(baseToken, quoteToken);
-		address payable bankAddress = banks[bankHash];
+		address payable bankAddress = banks[baseToken][quoteToken];
 
 		require(baseQuantity > 0, "zero quantity fills not permitted");
 		require(baseQuantity <= order.baseQuantity, "trying to fill more than order size");
@@ -180,8 +177,8 @@ contract OrderBook {
 		emit OrderFill(orderId, baseQuantity);
 	}
 
-	function bankhash(address baseToken, address quoteToken) public pure returns (bytes32) {
-		return keccak256(abi.encodePacked(baseToken, quoteToken));
+	function getBankAddress(address baseToken, address quoteToken) public view returns (address payable) {
+		return banks[baseToken][quoteToken];
 	}
 
 	function getorder(address baseToken, address quoteToken, uint orderId) external view returns (Order memory) {

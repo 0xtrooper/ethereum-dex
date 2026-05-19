@@ -1,7 +1,7 @@
 INFO:Detectors:
 Detector: reentrancy-eth
 Reentrancy in OrderBook.fillOrder(uint256,uint256) (OrderBook.sol#130-180):
-EXPLANATION: bankAddress is an internal contract created and owned by OrderBook.sol so no re-entrancy can occur there. Plus gas is restricted to 2300 just in case.
+EXPLANATION (k26dr): bankAddress is an internal contract created and owned by OrderBook.sol so no re-entrancy can occur there. Plus gas is restricted to 2300 just in case.
 	External calls:
 	- (ok,None) = address(bankAddress).call{gas: 2300,value: msg.value}() (OrderBook.sol#151)
 	State variables written after the call(s):

@@ -43,12 +43,10 @@ contract OrderBook {
 		address user;
 		uint baseQuantity;
 		uint quoteQuantity;
-		address baseToken;
-		address quoteToken;
 		Side side;
 	}
 	mapping(bytes32 => address) public banks;
-	mapping(uint => Order) public orders;
+	mapping(bytes32 => mapping(uint => Order)) orders;
 	uint public orderCounter = 0;
 
 	event OrderPlaced(uint orderId, address indexed user, address indexed baseToken, address indexed quoteToken, Side side, uint baseQuantity, uint quoteQuantity);
@@ -64,7 +62,8 @@ contract OrderBook {
 	}
 
 	function placeOrder(address baseToken, address quoteToken, Side side, uint baseQuantity, uint quoteQuantity) external payable returns (uint orderId) {
-		address bankAddress = banks[bankhash(baseToken, quoteToken)];
+		bytes32 bankHash = bankhash(baseToken, quoteToken);
+		address bankAddress = banks[bankHash];
 		require(bankAddress != address(0), "createMarket before placing an order on it");
 		require(baseQuantity > 0 && quoteQuantity > 0, "zero quantity orders not permitted");
 
@@ -104,30 +103,32 @@ contract OrderBook {
 			}
 		}
 		orderId = ++orderCounter;
-		orders[orderId] = Order(msg.sender, baseQuantity, quoteQuantity, baseToken, quoteToken, side);
+		orders[bankHash][orderId] = Order(msg.sender, baseQuantity, quoteQuantity, side);
 		emit OrderPlaced(orderId, msg.sender, baseToken, quoteToken, side, baseQuantity, quoteQuantity);
 	}
 
-	function cancelOrder(uint orderId) external {
-		Order memory order = orders[orderId];
+	function cancelOrder(address baseToken, address quoteToken, uint orderId) external {
+		bytes32 bankHash = bankhash(baseToken, quoteToken);
+		Order memory order = orders[bankHash][orderId];
 		require(msg.sender == order.user, "users can only cancel their own order / order may not exist");
-		delete orders[orderId];
-		address bankAddress = banks[bankhash(order.baseToken, order.quoteToken)];
+		delete orders[bankHash][orderId];
+		address bankAddress = banks[bankHash];
 
 		// Bank.withdrawTo is gas limited so there is minimal re-entrancy risk, but orders are being deleted
 		// before withdraws anyway to prevent hijinks within the 2300 forwarded gas 
 		if (order.side == Side.SELL) {
-			Bank(bankAddress).withdrawTo(order.user, order.baseToken, order.baseQuantity);
+			Bank(bankAddress).withdrawTo(order.user, baseToken, order.baseQuantity);
 		} else if (order.side == Side.BUY) {
-			Bank(bankAddress).withdrawTo(order.user, order.quoteToken, order.quoteQuantity);
+			Bank(bankAddress).withdrawTo(order.user, quoteToken, order.quoteQuantity);
 		}
 		emit OrderCanceled(orderId);
 	}
 
-	function fillOrder(uint orderId, uint baseQuantity) external payable {
-		Order memory order = orders[orderId];
+	function fillOrder(uint orderId, address baseToken, address quoteToken, uint baseQuantity) external payable {
+		bytes32 bankHash = bankhash(baseToken, quoteToken);
+		Order memory order = orders[bankHash][orderId];
 
-		address bankAddress = banks[bankhash(order.baseToken, order.quoteToken)];
+		address bankAddress = banks[bankHash];
 
 		require(baseQuantity > 0, "zero quantity fills not permitted");
 		require(baseQuantity <= order.baseQuantity, "trying to fill more than order size");
@@ -137,10 +138,10 @@ contract OrderBook {
 
 		if (msg.value > 0) {
 			if (order.side == Side.SELL) {
-				require(order.quoteToken == address(0), "quote token should be 0x0");
+				require(quoteToken == address(0), "quote token should be 0x0");
 				require(quoteQuantity == msg.value, "mismatch between quoteQuantity and amount of ETH sent");
 			} else if (order.side == Side.BUY) {
-				require(order.baseToken == address(0), "base token should be 0x0");
+				require(baseToken == address(0), "base token should be 0x0");
 				require(baseQuantity == msg.value, "mismatch between provided baseQuantity and amount of ETH sent");
 			}
 
@@ -152,31 +153,36 @@ contract OrderBook {
 		// Bank.withdrawTo is gas limited so there is no real re-entrancy risk here, but the
 		// base and quote quantities are being updated before any withdraws to remove risk anyway
 		// Additionally orders are being deleted when possible to 0 all storage slots for that order
-		orders[orderId].baseQuantity -= baseQuantity;
-		orders[orderId].quoteQuantity -= quoteQuantity;
-		if (orders[orderId].baseQuantity == 0) {
-			delete orders[orderId];
+		orders[bankHash][orderId].baseQuantity -= baseQuantity;
+		orders[bankHash][orderId].quoteQuantity -= quoteQuantity;
+		if (orders[bankHash][orderId].baseQuantity == 0) {
+			delete orders[bankHash][orderId];
 		}
 
 		if (order.side == Side.SELL) {
-			if (order.quoteToken == address(0)) {
+			if (quoteToken == address(0)) {
 				Bank(bankAddress).withdrawTo(order.user, address(0), quoteQuantity); // send ETH
 			} else {
-				IERC20(order.quoteToken).safeTransferFrom(msg.sender, order.user, quoteQuantity);
+				IERC20(quoteToken).safeTransferFrom(msg.sender, order.user, quoteQuantity);
 			}
-			Bank(bankAddress).withdrawTo(msg.sender, order.baseToken, baseQuantity);
+			Bank(bankAddress).withdrawTo(msg.sender, baseToken, baseQuantity);
 		} else if (order.side == Side.BUY) {
-			if (order.baseToken == address(0)) {
+			if (baseToken == address(0)) {
 				Bank(bankAddress).withdrawTo(order.user, address(0), baseQuantity); // send ETH
 			} else {
-				IERC20(order.baseToken).safeTransferFrom(msg.sender, order.user, baseQuantity);
+				IERC20(baseToken).safeTransferFrom(msg.sender, order.user, baseQuantity);
 			}
-			Bank(bankAddress).withdrawTo(msg.sender, order.quoteToken, quoteQuantity);
+			Bank(bankAddress).withdrawTo(msg.sender, quoteToken, quoteQuantity);
 		}
 		emit OrderFill(orderId, baseQuantity);
 	}
 
 	function bankhash(address baseToken, address quoteToken) public pure returns (bytes32) {
 		return keccak256(abi.encodePacked(baseToken, quoteToken));
+	}
+
+	function getorder(address baseToken, address quoteToken, uint orderId) public view returns (Order memory) {
+		bytes32 bankHash = bankhash(baseToken, quoteToken);
+		return orders[bankHash][orderId];
 	}
 }

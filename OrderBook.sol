@@ -20,9 +20,7 @@ contract Bank {
 		owner = _owner;
 	}
 
-	// This function intentionally uses .transfer instead of .call for ETH transfers
-	// I don't see any benefit to forwarding more gas and would rather restrict the receiver 
-	// in exchange for more security on our end, but I'm open to opinions on it
+	// This function limits the gas forwarded on ETH transfers to prevent re-entrancy
 	function withdrawTo(address user, address token, uint amount) external {
 		require(msg.sender == owner, "only owner can withdraw funds");
 		require(amount > 0, "amount is zero");

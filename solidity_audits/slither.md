@@ -1,0 +1,151 @@
+INFO:Detectors:
+Detector: reentrancy-eth
+Reentrancy in OrderBook.fillOrder(uint256,uint256) (OrderBook.sol#130-180):
+	External calls:
+	- (ok,None) = address(bankAddress).call{gas: 2300,value: msg.value}() (OrderBook.sol#151)
+	State variables written after the call(s):
+	- orders[orderId].baseQuantity -= baseQuantity (OrderBook.sol#158)
+	OrderBook.orders (OrderBook.sol#53) can be used in cross function reentrancies:
+	- OrderBook.cancelOrder(uint256) (OrderBook.sol#114-128)
+	- OrderBook.fillOrder(uint256,uint256) (OrderBook.sol#130-180)
+	- OrderBook.orders (OrderBook.sol#53)
+	- OrderBook.placeOrder(address,address,OrderBook.Side,uint256,uint256) (OrderBook.sol#68-112)
+	- orders[orderId].quoteQuantity -= quoteQuantity (OrderBook.sol#159)
+	OrderBook.orders (OrderBook.sol#53) can be used in cross function reentrancies:
+	- OrderBook.cancelOrder(uint256) (OrderBook.sol#114-128)
+	- OrderBook.fillOrder(uint256,uint256) (OrderBook.sol#130-180)
+	- OrderBook.orders (OrderBook.sol#53)
+	- OrderBook.placeOrder(address,address,OrderBook.Side,uint256,uint256) (OrderBook.sol#68-112)
+	- delete orders[orderId] (OrderBook.sol#161)
+	OrderBook.orders (OrderBook.sol#53) can be used in cross function reentrancies:
+	- OrderBook.cancelOrder(uint256) (OrderBook.sol#114-128)
+	- OrderBook.fillOrder(uint256,uint256) (OrderBook.sol#130-180)
+	- OrderBook.orders (OrderBook.sol#53)
+	- OrderBook.placeOrder(address,address,OrderBook.Side,uint256,uint256) (OrderBook.sol#68-112)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-1
+INFO:Detectors:
+Detector: missing-zero-check
+Bank.withdrawTo(address,address,uint256).user (OrderBook.sol#26) lacks a zero-check on :
+		- (ok,None) = address(user).call{gas: 2300,value: amount}() (OrderBook.sol#31)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#missing-zero-address-validation
+INFO:Detectors:
+Detector: reentrancy-benign
+Reentrancy in OrderBook.placeOrder(address,address,OrderBook.Side,uint256,uint256) (OrderBook.sol#68-112):
+	External calls:
+	- (ok,None) = address(bankAddress).call{gas: 2300,value: msg.value}() (OrderBook.sol#77)
+	State variables written after the call(s):
+	- orders[orderId] = Order(msg.sender,baseQuantity,quoteQuantity,baseToken,quoteToken,side) (OrderBook.sol#110)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-3
+INFO:Detectors:
+Detector: reentrancy-events
+Reentrancy in OrderBook.cancelOrder(uint256) (OrderBook.sol#114-128):
+	External calls:
+	- Bank(bankAddress).withdrawTo(order.user,order.baseToken,order.baseQuantity) (OrderBook.sol#123)
+	- Bank(bankAddress).withdrawTo(order.user,order.quoteToken,order.quoteQuantity) (OrderBook.sol#125)
+	Event emitted after the call(s):
+	- OrderCanceled(orderId) (OrderBook.sol#127)
+Reentrancy in OrderBook.fillOrder(uint256,uint256) (OrderBook.sol#130-180):
+	External calls:
+	- (ok,None) = address(bankAddress).call{gas: 2300,value: msg.value}() (OrderBook.sol#151)
+	- Bank(bankAddress).withdrawTo(order.user,address(0),quoteQuantity) (OrderBook.sol#166)
+	- Bank(bankAddress).withdrawTo(msg.sender,order.baseToken,baseQuantity) (OrderBook.sol#170)
+	- Bank(bankAddress).withdrawTo(order.user,address(0),baseQuantity) (OrderBook.sol#173)
+	- Bank(bankAddress).withdrawTo(msg.sender,order.quoteToken,quoteQuantity) (OrderBook.sol#177)
+	External calls sending eth:
+	- (ok,None) = address(bankAddress).call{gas: 2300,value: msg.value}() (OrderBook.sol#151)
+	Event emitted after the call(s):
+	- OrderFill(orderId,baseQuantity) (OrderBook.sol#179)
+Reentrancy in OrderBook.placeOrder(address,address,OrderBook.Side,uint256,uint256) (OrderBook.sol#68-112):
+	External calls:
+	- (ok,None) = address(bankAddress).call{gas: 2300,value: msg.value}() (OrderBook.sol#77)
+	Event emitted after the call(s):
+	- OrderPlaced(orderId,msg.sender,baseToken,quoteToken,side,baseQuantity,quoteQuantity) (OrderBook.sol#111)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-4
+INFO:Detectors:
+Detector: return-bomb
+Bank.withdrawTo(address,address,uint256) (OrderBook.sol#26-36) tries to limit the gas of an external call that controls implicit decoding
+	(ok,None) = address(user).call{gas: 2300,value: amount}() (OrderBook.sol#31)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#return-bomb
+INFO:Detectors:
+Detector: assembly
+SafeERC20.tryGetDecimals(IERC20) (libraries/SafeERC20.sol#169-177) uses assembly
+	- INLINE ASM (libraries/SafeERC20.sol#171-176)
+SafeERC20._safeTransfer(IERC20,address,uint256,bool) (libraries/SafeERC20.sol#188-212) uses assembly
+	- INLINE ASM (libraries/SafeERC20.sol#191-211)
+SafeERC20._safeTransferFrom(IERC20,address,address,uint256,bool) (libraries/SafeERC20.sol#224-256) uses assembly
+	- INLINE ASM (libraries/SafeERC20.sol#233-255)
+SafeERC20._safeApprove(IERC20,address,uint256,bool) (libraries/SafeERC20.sol#267-291) uses assembly
+	- INLINE ASM (libraries/SafeERC20.sol#270-290)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#assembly-usage
+INFO:Detectors:
+Detector: pragma
+3 different versions of Solidity are used:
+	- Version constraint ^0.8.20 is used by:
+		-^0.8.20 (OrderBook.sol#9)
+		-^0.8.20 (libraries/SafeERC20.sol#4)
+	- Version constraint >=0.6.2 is used by:
+		->=0.6.2 (libraries/IERC1363.sol#4)
+		->=0.6.2 (libraries/IERC20Metadata.sol#4)
+	- Version constraint >=0.4.16 is used by:
+		->=0.4.16 (libraries/IERC165.sol#4)
+		->=0.4.16 (libraries/IERC20.sol#4)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#different-pragma-directives-are-used
+INFO:Detectors:
+Detector: solc-version
+Version constraint ^0.8.20 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)
+	- VerbatimInvalidDeduplication
+	- FullInlinerNonExpressionSplitArgumentEvaluationOrder
+	- MissingSideEffectsOnSelectorAccess.
+It is used by:
+	- ^0.8.20 (OrderBook.sol#9)
+	- ^0.8.20 (libraries/SafeERC20.sol#4)
+Version constraint >=0.6.2 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)
+	- MissingSideEffectsOnSelectorAccess
+	- AbiReencodingHeadOverflowWithStaticArrayCleanup
+	- DirtyBytesArrayToStorage
+	- NestedCalldataArrayAbiReencodingSizeValidation
+	- ABIDecodeTwoDimensionalArrayMemory
+	- KeccakCaching
+	- EmptyByteArrayCopy
+	- DynamicArrayCleanup
+	- MissingEscapingInFormatting
+	- ArraySliceDynamicallyEncodedBaseType
+	- ImplicitConstructorCallvalueCheck
+	- TupleAssignmentMultiStackSlotComponents
+	- MemoryArrayCreationOverflow.
+It is used by:
+	- >=0.6.2 (libraries/IERC1363.sol#4)
+	- >=0.6.2 (libraries/IERC20Metadata.sol#4)
+Version constraint >=0.4.16 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)
+	- DirtyBytesArrayToStorage
+	- ABIDecodeTwoDimensionalArrayMemory
+	- KeccakCaching
+	- EmptyByteArrayCopy
+	- DynamicArrayCleanup
+	- ImplicitConstructorCallvalueCheck
+	- TupleAssignmentMultiStackSlotComponents
+	- MemoryArrayCreationOverflow
+	- privateCanBeOverridden
+	- SignedArrayStorageCopy
+	- ABIEncoderV2StorageArrayWithMultiSlotElement
+	- DynamicConstructorArgumentsClippedABIV2
+	- UninitializedFunctionPointerInConstructor_0.4.x
+	- IncorrectEventSignatureInLibraries_0.4.x
+	- ExpExponentCleanup
+	- NestedArrayFunctionCallDecoder
+	- ZeroFunctionSelector.
+It is used by:
+	- >=0.4.16 (libraries/IERC165.sol#4)
+	- >=0.4.16 (libraries/IERC20.sol#4)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#incorrect-versions-of-solidity
+INFO:Detectors:
+Detector: low-level-calls
+Low level call in Bank.withdrawTo(address,address,uint256) (OrderBook.sol#26-36):
+	- (ok,None) = address(user).call{gas: 2300,value: amount}() (OrderBook.sol#31)
+Low level call in OrderBook.placeOrder(address,address,OrderBook.Side,uint256,uint256) (OrderBook.sol#68-112):
+	- (ok,None) = address(bankAddress).call{gas: 2300,value: msg.value}() (OrderBook.sol#77)
+Low level call in OrderBook.fillOrder(uint256,uint256) (OrderBook.sol#130-180):
+	- (ok,None) = address(bankAddress).call{gas: 2300,value: msg.value}() (OrderBook.sol#151)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#low-level-calls
+INFO:Slither:OrderBook.sol analyzed (7 contracts with 101 detectors), 18 result(s) found
+

@@ -117,7 +117,7 @@ contract OrderBook {
 		delete orders[orderId];
 		address bankAddress = banks[bankhash(order.baseToken, order.quoteToken)];
 
-		// Bank.withdrawTo uses .transfer so there is minimal re-entrancy risk, but orders are being deleted
+		// Bank.withdrawTo is gas limited so there is minimal re-entrancy risk, but orders are being deleted
 		// before withdraws anyway to prevent hijinks within the 2300 forwarded gas 
 		if (order.side == Side.SELL) {
 			Bank(bankAddress).withdrawTo(order.user, order.baseToken, order.baseQuantity);
@@ -152,7 +152,7 @@ contract OrderBook {
 			require(ok, "eth transfer to bank failed");
 		}
 
-		// Bank.withdrawTo uses .transfer so there is no real re-entrancy risk here, but the
+		// Bank.withdrawTo is gas limited so there is no real re-entrancy risk here, but the
 		// base and quote quantities are being updated before any withdraws to remove risk anyway
 		// Additionally orders are being deleted when possible to 0 all storage slots for that order
 		orders[orderId].baseQuantity -= baseQuantity;

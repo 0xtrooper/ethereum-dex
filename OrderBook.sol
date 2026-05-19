@@ -103,7 +103,9 @@ contract OrderBook {
 				}
 			}
 		}
-		orderId = ++orderCounter;
+		unchecked {
+			orderId = ++orderCounter;
+		}
 		orders[bankHash][orderId] = Order(msg.sender, baseQuantity, quoteQuantity, side);
 		emit OrderPlaced(orderId, msg.sender, baseToken, quoteToken, side, baseQuantity, quoteQuantity);
 	}

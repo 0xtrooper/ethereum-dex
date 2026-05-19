@@ -181,7 +181,7 @@ contract OrderBook {
 		return keccak256(abi.encodePacked(baseToken, quoteToken));
 	}
 
-	function getorder(address baseToken, address quoteToken, uint orderId) public view returns (Order memory) {
+	function getorder(address baseToken, address quoteToken, uint orderId) external view returns (Order memory) {
 		bytes32 bankHash = bankhash(baseToken, quoteToken);
 		return orders[bankHash][orderId];
 	}

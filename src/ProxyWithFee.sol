@@ -69,7 +69,7 @@ contract ProxyWithFee {
 	}
 
 	function withdrawToken(address token) external {
-		require(msg.sender == owner, "only owner can update fee");
+		require(msg.sender == owner, "only owner can withdraw");
 		if (token == address(0)) {
 			(bool ok,) = payable(owner).call{value:address(this).balance}("");
 			require(ok, "eth transfer failed");

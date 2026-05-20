@@ -173,6 +173,43 @@ contract OrderBookTest is Test {
 		assertEq(order.quoteQuantity, 100e6 - uint(100e6) * uint(100e6) / uint(115e6), "Remaining Quote Quantity is wrong");
 	}
 
+	function testBalances() public {
+		// burn all coins
+		vm.prank(user1);
+		EURT.transfer(address(1), EURT.balanceOf(user1));
+		assertEq(USDC.balanceOf(user1), 100e8);
+		uint USDCuser1bal = USDC.balanceOf(user1);
+		vm.prank(user1);
+		USDC.transfer(address(1), USDCuser1bal);
+		vm.prank(user2);
+		EURT.transfer(address(1), EURT.balanceOf(user2));
+		vm.prank(user2);
+		USDC.transfer(address(1), USDC.balanceOf(user2));
+		assertEq(EURT.balanceOf(user2), 0);
+		assertEq(EURT.balanceOf(user1), 0);
+		assertEq(USDC.balanceOf(user1), 0);
+		assertEq(USDC.balanceOf(user2), 0);
+
+		orderBook.createMarket(address(EURT), address(USDC));
+		vm.prank(user1);
+		EURT.approve(address(orderBook), 300e6);
+		EURT.mint(user1, 1000*1e6);
+		vm.prank(user1);
+		uint orderId = orderBook.placeOrder(address(EURT), address(USDC), OrderBook.Side.SELL, 100 * 1e6, 100 * 1e6);
+		vm.prank(user2);
+		USDC.approve(address(orderBook), 400e6);
+		USDC.mint(user2, 1000e6);
+		vm.prank(user2);
+		orderBook.fillOrder(orderId, address(EURT), address(USDC), 60e6);
+		address bankAddress = orderBook.getBankAddress(address(EURT), address(USDC));
+		assertEq(EURT.balanceOf(user2), 60e6);
+		assertEq(EURT.balanceOf(user1), 900e6);
+		assertEq(EURT.balanceOf(bankAddress), 40e6);
+		assertEq(USDC.balanceOf(user1), 60e6);
+		assertEq(USDC.balanceOf(user2), 940e6);
+		assertEq(USDC.balanceOf(bankAddress), 0);
+	}
+
 	function testPartialThenFullFill() public {
 		orderBook.createMarket(address(EURT), address(USDC));
 		vm.prank(user1);
@@ -242,6 +279,31 @@ contract OrderBookTest is Test {
 		vm.prank(user2);
 		vm.expectRevert("trying to fill more than order size");
 		orderBook.fillOrder(orderId, address(EURT), address(USDC), 120e6);
+	}
+
+	function testPartialFillThenOverfill() public {
+		orderBook.createMarket(address(EURT), address(USDC));
+		vm.prank(user1);
+		EURT.approve(address(orderBook), 300e6);
+		EURT.mint(user1, 1000*1e6);
+		vm.prank(user1);
+		uint orderId = orderBook.placeOrder(address(EURT), address(USDC), OrderBook.Side.SELL, 115 * 1e6, 100 * 1e6);
+	        OrderBook.Order memory order = orderBook.getorder(address(EURT), address(USDC), orderId);
+		assertEq(order.user, user1, "User should match");
+		assertEq(order.baseQuantity, 115 * 1e6, "Base Quantity should match");
+		assertEq(order.quoteQuantity, 100 * 1e6, "Quote Quantity should match");
+		vm.prank(user2);
+		USDC.approve(address(orderBook), 400e6);
+		USDC.mint(user2, 1000e6);
+		vm.prank(user2);
+		orderBook.fillOrder(orderId, address(EURT), address(USDC), 100e6);
+	        order = orderBook.getorder(address(EURT), address(USDC), orderId);
+		assertEq(order.user, user1, "User should be user who placed order");
+		assertEq(order.baseQuantity, 15e6, "Remaining Base Quantity is wrong");
+		assertEq(order.quoteQuantity, 100e6 - uint(100e6) * uint(100e6) / uint(115e6), "Remaining Quote Quantity is wrong");
+		vm.prank(user2);
+		vm.expectRevert("trying to fill more than order size");
+		orderBook.fillOrder(orderId, address(EURT), address(USDC), 20e6);
 	}
 	
 }

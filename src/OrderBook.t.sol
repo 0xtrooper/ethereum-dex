@@ -224,5 +224,24 @@ contract OrderBookTest is Test {
 		assertEq(order.baseQuantity, 0, "Remaining Base Quantity is wrong");
 		assertEq(order.quoteQuantity, 0, "Remaining Quote Quantity is wrong");
 	}
+
+	function testFillTooMuch() public {
+		orderBook.createMarket(address(EURT), address(USDC));
+		vm.prank(user1);
+		EURT.approve(address(orderBook), 300e6);
+		EURT.mint(user1, 1000*1e6);
+		vm.prank(user1);
+		uint orderId = orderBook.placeOrder(address(EURT), address(USDC), OrderBook.Side.SELL, 115 * 1e6, 100 * 1e6);
+	        OrderBook.Order memory order = orderBook.getorder(address(EURT), address(USDC), orderId);
+		assertEq(order.user, user1, "User should match");
+		assertEq(order.baseQuantity, 115 * 1e6, "Base Quantity should match");
+		assertEq(order.quoteQuantity, 100 * 1e6, "Quote Quantity should match");
+		vm.prank(user2);
+		USDC.approve(address(orderBook), 400e6);
+		USDC.mint(user2, 1000e6);
+		vm.prank(user2);
+		vm.expectRevert("trying to fill more than order size");
+		orderBook.fillOrder(orderId, address(EURT), address(USDC), 120e6);
+	}
 	
 }

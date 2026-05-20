@@ -9,26 +9,74 @@
 pragma solidity ^0.8.20;
 
 import "../OrderBook.sol";
-import "./libraries/SafeERC20.sol";
+import "../libraries/SafeERC20.sol";
 
 using SafeERC20 for IERC20;
 
 contract ProxyWithFee {
-	uint immutable FEE_NUMERATOR;
-	uint immutable FEE_DENOMINATOR;
+	uint FEE_NUMERATOR;
+	uint FEE_DENOMINATOR;
 	address immutable ORDERBOOK_CONTRACT_ADDRESS; 
+	address immutable owner; 
 
-	constructor(uint fee_numerator, uint fee_denominator, address orderbook_contract) {
+	constructor(uint fee_numerator, uint fee_denominator, address orderbook_contract, address _owner) {
 		FEE_NUMERATOR = fee_numerator;
 		FEE_DENOMINATOR = fee_denominator;
 		ORDERBOOK_CONTRACT_ADDRESS = orderbook_contract;
+		owner = _owner;
+	}
+
+	function enableToken(address token) external {
+		IERC20(token).approve(ORDERBOOK_CONTRACT_ADDRESS, type(uint256).max);
 	}
 
 	function fillOrderWithFee(uint orderId, address baseToken, address quoteToken, uint baseQuantity) external payable {
-		OrderBook.Order memory order = OrderBook.getorder(baseToken, quoteToken, orderId);
-		OrderBook(ORDERBOOK_CONTRACT_ADDRESS).fillOrder{value:msg.value}(orderId, baseToken, quoteToken, baseQuantity);
+		OrderBook orderBook = OrderBook(ORDERBOOK_CONTRACT_ADDRESS);
+		OrderBook.Order memory order = orderBook.getorder(baseToken, quoteToken, orderId);
+
+		uint quoteQuantity = baseQuantity * order.quoteQuantity / order.baseQuantity;
+
+		IERC20 quoteTokenIERC20 = IERC20(quoteToken);
+		IERC20 baseTokenIERC20 = IERC20(baseToken);
+
+		// Filler is buying - sending quote token, receiving base token
 		if (order.side == OrderBook.Side.SELL) {
-		} else {
+			if (quoteToken != address(0)) {
+				quoteTokenIERC20.safeTransferFrom(msg.sender, address(this), quoteQuantity);
+			}
+			orderBook.fillOrder{value:msg.value}(orderId, baseToken, quoteToken, baseQuantity);
+			uint baseBalance = baseTokenIERC20.balanceOf(address(this));
+			uint fee = baseBalance * FEE_NUMERATOR / FEE_DENOMINATOR;
+			baseTokenIERC20.safeTransfer(msg.sender, baseBalance - fee);
+		} 
+
+		// Filler is selling - sending base token, receiving quote token
+		else {
+			if (baseToken != address(0)) {
+				baseTokenIERC20.safeTransferFrom(msg.sender, address(this), quoteQuantity);
+			}
+			orderBook.fillOrder{value:msg.value}(orderId, baseToken, quoteToken, baseQuantity);
+			uint quoteBalance = quoteTokenIERC20.balanceOf(address(this));
+			uint fee = quoteBalance * FEE_NUMERATOR / FEE_DENOMINATOR;
+			quoteTokenIERC20.safeTransfer(msg.sender, quoteBalance - fee);
+		}
+	}
+
+	function updateFee(uint fee_numerator, uint fee_denominator) external {
+		require(msg.sender == owner, "only owner can update fee");
+		FEE_NUMERATOR = fee_numerator;
+		FEE_DENOMINATOR = fee_denominator;
+	}
+
+	function withdrawToken(address token) external {
+		require(msg.sender == owner, "only owner can update fee");
+		if (token == address(0)) {
+			(bool ok,) = payable(owner).call{value:address(this).balance}("");
+			require(ok, "eth transfer failed");
+		}
+		else {
+			IERC20 tokenIERC20 = IERC20(token);
+			tokenIERC20.safeTransfer(owner, tokenIERC20.balanceOf(address(this)));
 		}
 	}
 }

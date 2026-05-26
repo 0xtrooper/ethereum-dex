@@ -133,26 +133,26 @@ contract OrderBook {
 		emit OrderCanceled(orderId);
 	}
 
-	function fillOrder(uint orderId, address baseToken, address quoteToken, uint baseQuantity) external payable {
+	function fillOrder(uint orderId, address baseToken, address quoteToken, uint baseQuantityToFill) external payable {
 		Order memory order = orders[baseToken][quoteToken][orderId];
 
 		address payable bankAddress = banks[baseToken][quoteToken];
 
-		require(baseQuantity > 0, "zero quantity fills not permitted");
-		require(baseQuantity <= order.baseQuantity, "trying to fill more than order size");
+		require(baseQuantityToFill > 0, "zero quantity fills not permitted");
+		require(baseQuantityToFill <= order.baseQuantity, "trying to fill more than order size");
 
 		(bool decimalCallSuccess, uint8 quoteTokenDecimals) = IERC20(quoteToken).tryGetDecimals();
 		require(decimalCallSuccess, "failed to get decimals for token");
-		uint quoteQuantity = baseQuantity * order.price / quoteTokenDecimals;
-		require(quoteQuantity > 0, "calculated quote quantity is zero");
+		uint quoteQuantityToFill = baseQuantityToFill * order.price / quoteTokenDecimals;
+		require(quoteQuantityToFill > 0, "calculated quote quantity is zero");
 
 		if (msg.value > 0) {
 			if (order.side == Side.SELL) {
 				require(quoteToken == address(0), "quote token should be 0x0");
-				require(quoteQuantity == msg.value, "mismatch between quoteQuantity and amount of ETH sent");
+				require(quoteQuantityToFill == msg.value, "mismatch between quoteQuantityToFill and amount of ETH sent");
 			} else if (order.side == Side.BUY) {
 				require(baseToken == address(0), "base token should be 0x0");
-				require(baseQuantity == msg.value, "mismatch between provided baseQuantity and amount of ETH sent");
+				require(baseQuantityToFill == msg.value, "mismatch between provided baseQuantityToFill and amount of ETH sent");
 			}
 
 			// if checks pass, forward all incoming ETH to the market's bank
@@ -163,27 +163,27 @@ contract OrderBook {
 		// Bank.withdrawTo is gas limited so there is no real re-entrancy risk here, but the
 		// base and quote quantities are being updated before any withdraws to remove risk anyway
 		// Additionally orders are being deleted when possible to 0 all storage slots for that order
-		orders[baseToken][quoteToken][orderId].baseQuantity -= baseQuantity;
+		orders[baseToken][quoteToken][orderId].baseQuantity -= baseQuantityToFill;
 		if (orders[baseToken][quoteToken][orderId].baseQuantity == 0) {
 			delete orders[baseToken][quoteToken][orderId];
 		}
 
 		if (order.side == Side.SELL) {
 			if (quoteToken == address(0)) {
-				Bank(bankAddress).withdrawTo(order.user, address(0), quoteQuantity); // send ETH
+				Bank(bankAddress).withdrawTo(order.user, address(0), quoteQuantityToFill); // send ETH
 			} else {
-				IERC20(quoteToken).safeTransferFrom(msg.sender, order.user, quoteQuantity);
+				IERC20(quoteToken).safeTransferFrom(msg.sender, order.user, quoteQuantityToFill);
 			}
-			Bank(bankAddress).withdrawTo(msg.sender, baseToken, baseQuantity);
+			Bank(bankAddress).withdrawTo(msg.sender, baseToken, baseQuantityToFill);
 		} else if (order.side == Side.BUY) {
 			if (baseToken == address(0)) {
-				Bank(bankAddress).withdrawTo(order.user, address(0), baseQuantity); // send ETH
+				Bank(bankAddress).withdrawTo(order.user, address(0), baseQuantityToFill); // send ETH
 			} else {
-				IERC20(baseToken).safeTransferFrom(msg.sender, order.user, baseQuantity);
+				IERC20(baseToken).safeTransferFrom(msg.sender, order.user, baseQuantityToFill);
 			}
-			Bank(bankAddress).withdrawTo(msg.sender, quoteToken, quoteQuantity);
+			Bank(bankAddress).withdrawTo(msg.sender, quoteToken, quoteQuantityToFill);
 		}
-		emit OrderFill(orderId, baseQuantity);
+		emit OrderFill(orderId, baseQuantityToFill);
 	}
 
 	function getBankAddress(address baseToken, address quoteToken) public view returns (address payable) {

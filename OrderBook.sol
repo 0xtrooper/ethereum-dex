@@ -92,7 +92,7 @@ contract OrderBook {
 		} else if (side == Side.BUY) {
 			if (msg.value > 0) {
 				require(quoteToken == address(0), "quote token should be 0x0 when buying with ETH");
-				require(quoteQuantity == msg.value, "mismatch between provided quoteQuantity and amount of ETH sent");
+				require(quoteQuantity == msg.value, "mismatch between calculated quoteQuantity and amount of ETH sent");
 				(bool ok,) = payable(bankAddress).call{value: msg.value, gas: 2300}("");
 				require(ok, "eth transfer to bank failed");
 			} else {
@@ -109,9 +109,9 @@ contract OrderBook {
 		unchecked {
 			orderId = ++orderCounter;
 		}
-		orders[baseToken][quoteToken][orderId] = Order(msg.sender, baseQuantity, quoteQuantity, side);
+		orders[baseToken][quoteToken][orderId] = Order(msg.sender, baseQuantity, price, side);
 		bytes32 markethash = keccak256(abi.encodePacked(baseToken, quoteToken));
-		emit OrderPlaced(orderId, msg.sender, baseToken, quoteToken, markethash, side, baseQuantity, quoteQuantity);
+		emit OrderPlaced(orderId, msg.sender, baseToken, quoteToken, markethash, side, baseQuantity, price);
 	}
 
 	function cancelOrder(address baseToken, address quoteToken, uint orderId) external {

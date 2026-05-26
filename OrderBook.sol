@@ -44,14 +44,14 @@ contract OrderBook {
 	struct Order {
 		address user;
 		uint baseQuantity;
-		uint quoteQuantity;
+		uint price;
 		Side side;
 	}
 	mapping(address => mapping(address => address payable)) banks; // baseToken -> quoteToken -> bankAddress
 	mapping(address => mapping(address => mapping(uint => Order))) orders; // baseToken -> quoteToken -> orderId -> Order
 	uint public orderCounter = 0;
 
-	event OrderPlaced(uint indexed orderId, address indexed user, address baseToken, address quoteToken, bytes32 indexed markethash, Side side, uint baseQuantity, uint quoteQuantity);
+	event OrderPlaced(uint indexed orderId, address indexed user, address baseToken, address quoteToken, bytes32 indexed markethash, Side side, uint baseQuantity, uint price);
 	event OrderCanceled(uint indexed orderId);
 	event OrderFill(uint indexed orderId, uint baseQuantity);
 
@@ -62,10 +62,15 @@ contract OrderBook {
 		banks[baseToken][quoteToken] = bankAddress;
 	}
 
-	function placeOrder(address baseToken, address quoteToken, Side side, uint baseQuantity, uint quoteQuantity) external payable returns (uint orderId) {
+	function placeOrder(address baseToken, address quoteToken, Side side, uint baseQuantity, uint price) external payable returns (uint orderId) {
 		address bankAddress = banks[baseToken][quoteToken];
 		require(bankAddress != address(0), "createMarket before placing an order on it");
-		require(baseQuantity > 0 && quoteQuantity > 0, "zero quantity orders not permitted");
+		require(baseQuantity > 0 && price > 0, "zero quantity/price orders not permitted");
+
+		(bool decimalCallSuccess, uint8 quoteTokenDecimals) = IERC20(quoteToken).tryGetDecimals();
+		require(decimalCallSuccess, "failed to get decimals for token");
+		uint quoteQuantity = baseQuantity * price / quoteTokenDecimals;
+		require(quoteQuantity > 0, "calculated quote quantity is zero");
 
 		if (side == Side.SELL) {
 			if (msg.value > 0) {
@@ -120,7 +125,10 @@ contract OrderBook {
 		if (order.side == Side.SELL) {
 			Bank(bankAddress).withdrawTo(order.user, baseToken, order.baseQuantity);
 		} else if (order.side == Side.BUY) {
-			Bank(bankAddress).withdrawTo(order.user, quoteToken, order.quoteQuantity);
+			(bool decimalCallSuccess, uint8 quoteTokenDecimals) = IERC20(quoteToken).tryGetDecimals();
+			require(decimalCallSuccess, "failed to get decimals for token");
+			uint quoteQuantity = order.baseQuantity * order.price / quoteTokenDecimals;
+			Bank(bankAddress).withdrawTo(order.user, quoteToken, quoteQuantity);
 		}
 		emit OrderCanceled(orderId);
 	}
@@ -133,7 +141,9 @@ contract OrderBook {
 		require(baseQuantity > 0, "zero quantity fills not permitted");
 		require(baseQuantity <= order.baseQuantity, "trying to fill more than order size");
 
-		uint quoteQuantity = (baseQuantity * order.quoteQuantity) / order.baseQuantity;
+		(bool decimalCallSuccess, uint8 quoteTokenDecimals) = IERC20(quoteToken).tryGetDecimals();
+		require(decimalCallSuccess, "failed to get decimals for token");
+		uint quoteQuantity = baseQuantity * order.price / quoteTokenDecimals;
 		require(quoteQuantity > 0, "calculated quote quantity is zero");
 
 		if (msg.value > 0) {
@@ -154,7 +164,6 @@ contract OrderBook {
 		// base and quote quantities are being updated before any withdraws to remove risk anyway
 		// Additionally orders are being deleted when possible to 0 all storage slots for that order
 		orders[baseToken][quoteToken][orderId].baseQuantity -= baseQuantity;
-		orders[baseToken][quoteToken][orderId].quoteQuantity -= quoteQuantity;
 		if (orders[baseToken][quoteToken][orderId].baseQuantity == 0) {
 			delete orders[baseToken][quoteToken][orderId];
 		}

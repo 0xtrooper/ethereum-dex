@@ -22,17 +22,11 @@ contract Bank {
 
 	receive() external payable {}
 
-	// This function limits the gas forwarded on ETH transfers to prevent re-entrancy
 	function withdrawTo(address user, address token, uint amount) external {
 		require(msg.sender == owner, "only owner can withdraw funds");
 		require(amount > 0, "amount is zero");
 
-		if (token == address(0)) {
-			(bool ok,) = payable(user).call{value: amount, gas: 2300}("");
-			require(ok, "eth transfer failed");
-		} else {
-			IERC20(token).safeTransfer(user, amount);
-		}
+		IERC20(token).safeTransfer(user, amount);
 	}
 }
 
@@ -73,38 +67,24 @@ contract MatchingOrderBook {
 		uint quoteQuantity = baseQuantity * price / quoteTokenDecimals;
 		require(quoteQuantity > 0, "calculated quote quantity is zero");
 
+		require(msg.value == 0, "Cannot send ETH. Use WETH instead.");
 		if (side == Side.SELL) {
-			if (msg.value > 0) {
-				require(baseToken == address(0), "base token should be 0x0 when selling ETH");
-				require(baseQuantity == msg.value, "mismatch between provided baseQuantity and amount of ETH sent");
-				(bool ok,) = payable(bankAddress).call{value: msg.value, gas: 2300}("");
-				require(ok, "eth transfer to bank failed");
-
-			} else {
-				IERC20 baseTokenIERC20 = IERC20(baseToken);
-				uint beforeBalance = baseTokenIERC20.balanceOf(bankAddress);
-				baseTokenIERC20.safeTransferFrom(msg.sender, bankAddress, baseQuantity);
-				uint afterBalance = baseTokenIERC20.balanceOf(bankAddress);
-				uint transferredBaseQuantity = afterBalance - beforeBalance;
-				if (transferredBaseQuantity != baseQuantity) {
-					baseQuantity = transferredBaseQuantity;
-				}
+			IERC20 baseTokenIERC20 = IERC20(baseToken);
+			uint beforeBalance = baseTokenIERC20.balanceOf(bankAddress);
+			baseTokenIERC20.safeTransferFrom(msg.sender, bankAddress, baseQuantity);
+			uint afterBalance = baseTokenIERC20.balanceOf(bankAddress);
+			uint transferredBaseQuantity = afterBalance - beforeBalance;
+			if (transferredBaseQuantity != baseQuantity) {
+				baseQuantity = transferredBaseQuantity;
 			}
 		} else if (side == Side.BUY) {
-			if (msg.value > 0) {
-				require(quoteToken == address(0), "quote token should be 0x0 when buying with ETH");
-				require(quoteQuantity == msg.value, "mismatch between calculated quoteQuantity and amount of ETH sent");
-				(bool ok,) = payable(bankAddress).call{value: msg.value, gas: 2300}("");
-				require(ok, "eth transfer to bank failed");
-			} else {
-				IERC20 quoteTokenIERC20 = IERC20(quoteToken);
-				uint beforeBalance = quoteTokenIERC20.balanceOf(bankAddress);
-				quoteTokenIERC20.safeTransferFrom(msg.sender, bankAddress, quoteQuantity);
-				uint afterBalance = quoteTokenIERC20.balanceOf(bankAddress);
-				uint transferredQuoteQuantity = afterBalance - beforeBalance;
-				if (transferredQuoteQuantity != quoteQuantity) {
-					quoteQuantity = transferredQuoteQuantity;
-				}
+			IERC20 quoteTokenIERC20 = IERC20(quoteToken);
+			uint beforeBalance = quoteTokenIERC20.balanceOf(bankAddress);
+			quoteTokenIERC20.safeTransferFrom(msg.sender, bankAddress, quoteQuantity);
+			uint afterBalance = quoteTokenIERC20.balanceOf(bankAddress);
+			uint transferredQuoteQuantity = afterBalance - beforeBalance;
+			if (transferredQuoteQuantity != quoteQuantity) {
+				quoteQuantity = transferredQuoteQuantity;
 			}
 		}
 
@@ -155,6 +135,50 @@ contract MatchingOrderBook {
 			}
 			orders[baseToken][quoteToken][side][orderId] = Order(msg.sender, baseQuantity, price, nextOrderId);
 		} else if (side == Side.BUY) {
+			uint fillOrderId = orderbooks[baseToken][quoteToken][Side.SELL];
+			Order memory fillOrder = orders[baseToken][quoteToken][Side.SELL][fillOrderId];
+
+			// Filling Opposite Book
+			while (price >= fillOrder.price) {
+				if (baseQuantity == fillOrder.baseQuantity) {
+					delete orders[baseToken][quoteToken][Side.SELL][fillOrderId];
+					orderbooks[baseToken][quoteToken][Side.SELL] = fillOrder.nextOrderId;
+					emit OrderFill(fillOrderId, fillOrder.baseQuantity);
+					uint fillOrderQuoteQuantity = fillOrder.baseQuantity * fillOrder.price;
+					Bank(bankAddress).withdrawTo(msg.sender, quoteToken, fillOrderQuoteQuantity);
+					Bank(bankAddress).withdrawTo(fillOrder.user, baseToken, baseQuantity);
+					break;
+				}
+				else if (baseQuantity > fillOrder.baseQuantity) {
+					delete orders[baseToken][quoteToken][Side.SELL][fillOrderId];
+					emit OrderFill(fillOrderId, fillOrder.baseQuantity);
+					uint fillOrderQuoteQuantity = fillOrder.baseQuantity * fillOrder.price;
+					Bank(bankAddress).withdrawTo(msg.sender, quoteToken, fillOrderQuoteQuantity);
+					Bank(bankAddress).withdrawTo(fillOrder.user, baseToken, fillOrder.baseQuantity);
+					baseQuantity -= fillOrder.baseQuantity;
+					fillOrder = orders[baseToken][quoteToken][Side.SELL][fillOrder.nextOrderId];
+				}
+				else { // baseQuantity < fillOrder.baseQuantity
+					orderbooks[baseToken][quoteToken][Side.SELL] = fillOrderId;
+					orders[baseToken][quoteToken][Side.SELL][fillOrderId].baseQuantity -= baseQuantity;
+					emit OrderFill(fillOrderId, baseQuantity);
+					uint fillQuoteQuantity = baseQuantity * fillOrder.price;
+					Bank(bankAddress).withdrawTo(msg.sender, quoteToken, fillQuoteQuantity);
+					Bank(bankAddress).withdrawTo(fillOrder.user, baseToken, baseQuantity);
+					baseQuantity = 0;
+					return 0;
+				}
+			}
+
+			// Place leftover orders in book
+			uint nextOrderId = orderbooks[baseToken][quoteToken][Side.SELL];
+			while (orders[baseToken][quoteToken][side][nextOrderId].price >= price) {
+				nextOrderId = orders[baseToken][quoteToken][side][nextOrderId].nextOrderId;
+			}
+			unchecked {
+				orderId = ++orderCounter;
+			}
+			orders[baseToken][quoteToken][side][orderId] = Order(msg.sender, baseQuantity, price, nextOrderId);
 		}
 
 		bytes32 markethash = keccak256(abi.encodePacked(baseToken, quoteToken));

@@ -22,13 +22,15 @@ contract Bank {
 
 	receive() external payable {}
 
-	// This function limits the gas forwarded on ETH transfers to prevent re-entrancy
+	// This function introduces re-entrancy risk. Be very careful before using!
+	// Checks-effects-interactions pattern should always be used when withdrawing
+	// https://docs.soliditylang.org/en/latest/security-considerations.html
 	function withdrawTo(address user, address token, uint amount) external {
 		require(msg.sender == owner, "only owner can withdraw funds");
 		require(amount > 0, "amount is zero");
 
 		if (token == address(0)) {
-			(bool ok,) = payable(user).call{value: amount, gas: 2300}("");
+			(bool ok,) = payable(user).call{value: amount}("");
 			require(ok, "eth transfer failed");
 		} else {
 			IERC20(token).safeTransfer(user, amount);
@@ -120,8 +122,8 @@ contract OrderBook {
 		delete orders[baseToken][quoteToken][orderId];
 		address payable bankAddress = banks[baseToken][quoteToken];
 
-		// Bank.withdrawTo is gas limited so there is minimal re-entrancy risk, but orders are being deleted
-		// before withdraws anyway to prevent hijinks within the 2300 forwarded gas 
+		// WARNING: Re-entrancy risk! 
+		// Orders are being deleted before withdraws to mitigate risk
 		if (order.side == Side.SELL) {
 			Bank(bankAddress).withdrawTo(order.user, baseToken, order.baseQuantity);
 		} else if (order.side == Side.BUY) {
@@ -160,8 +162,8 @@ contract OrderBook {
 			require(ok, "eth transfer to bank failed");
 		}
 
-		// Bank.withdrawTo is gas limited so there is no real re-entrancy risk here, but the
-		// base and quote quantities are being updated before any withdraws to remove risk anyway
+		// WARNING: Re-entrancy risk! 
+		// base and quote quantities are being updated before any withdraws to remove risk 
 		// Additionally orders are being deleted when possible to 0 all storage slots for that order
 		orders[baseToken][quoteToken][orderId].baseQuantity -= baseQuantityToFill;
 		if (orders[baseToken][quoteToken][orderId].baseQuantity == 0) {

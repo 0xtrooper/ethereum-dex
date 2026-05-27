@@ -204,11 +204,21 @@ contract MatchingOrderBook {
 		emit OrderCanceled(orderId);
 	}
 
-	function getBankAddress(address baseToken, address quoteToken) public view returns (address payable) {
+	function getBankAddress(address baseToken, address quoteToken) external view returns (address payable) {
 		return banks[baseToken][quoteToken];
 	}
 
 	function getorder(address baseToken, address quoteToken, Side side, uint orderId) external view returns (Order memory) {
 		return orders[baseToken][quoteToken][side][orderId];
+	}
+
+	function getorderbook(address baseToken, address quoteToken, Side side, uint depth) external view returns (Order[] memory) {
+		Order[] memory returnOrders = new Order[](depth); 
+		uint orderId = orderbooks[baseToken][quoteToken][side];
+		for (uint i=0; i < depth; i++) {
+			returnOrders[i] = orders[baseToken][quoteToken][side][orderId];
+			orderId = orders[baseToken][quoteToken][side][orderId].nextOrderId;
+		}
+		return returnOrders;
 	}
 }

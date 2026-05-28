@@ -2,9 +2,9 @@
 
 There are 2 versions of EVM orderbooks in this repo. 
 
-One is a scalable system for high-fee chains like Ethereum that allows for decentralized operation via an indexer that can be run locally or remotely [Orderbook.sol](OrderBook.sol). 
+One is a scalable system for high-fee chains like Ethereum that allows for decentralized operation via an indexer that can be run locally or remotely: [Orderbook.sol](OrderBook.sol). 
 
-The other is an on-chain matching engine that consumes more gas but permits full on-chain matching for low-fee chains [MatchingOrderbook.sol](MatchingOrderBook.sol). 
+The other is an on-chain matching engine that consumes more gas but permits full on-chain matching for low-fee chains: [MatchingOrderbook.sol](MatchingOrderBook.sol). 
 
 Both versions have a risk isolation system to prevent malicious tokens from attacking other markets, and have support for both regular ERC20 and non-standard fee-for-transfer tokens.
 

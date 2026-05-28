@@ -1,8 +1,8 @@
 # On-Chain Limit Order Matching Engine for EVM chains
 
-There are 2 versions of EVM orderbooks in this repo. 
+There are 2 versions of EVM orderbooks in this repo. Both charge 0 trading fees by default. Because everything is a 0-trading-fee limit order, execution is better than an AMM like Uniswap where slippage and LP fees can lead to extensive execution loss. 
 
-One is a scalable system for high-fee chains like Ethereum that allows for decentralized operation via an indexer that can be run locally or remotely: [Orderbook.sol](OrderBook.sol). There are no order minimums and the system can handle spam and dust orders with no issues. 
+One is a scalable system for high-fee chains like Ethereum that allows for decentralized operation via an indexer that can be run locally or remotely: [Orderbook.sol](OrderBook.sol). There are no order minimums and the design optimizes gas to keep execution prices low.
 
 The other is an on-chain matching engine that consumes more gas but permits full on-chain matching. It's ideal for low-fee chains but in the current environment with low Ethereum fees it could be viable there as well: [MatchingOrderbook.sol](MatchingOrderBook.sol). There is a minimum post order size on markets in this version that's configurable during market creation. Any orders below the minimum size are run as fill or kill operations that error out if the order doesn't fill in it's entirety. A single base-quote token pair can have multiple markets with different order minimum sizes. This keeps the exchange flexible and allows us to get to a level where spam is no longer an issue. 
 

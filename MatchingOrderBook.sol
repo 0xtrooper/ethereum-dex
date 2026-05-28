@@ -197,8 +197,7 @@ contract MatchingOrderBook {
 		delete orders[baseToken][quoteToken][side][orderId];
 		address payable bankAddress = banks[baseToken][quoteToken];
 
-		// Bank.withdrawTo is gas limited so there is minimal re-entrancy risk, but orders are being deleted
-		// before withdraws anyway to prevent hijinks within the 2300 forwarded gas 
+		// Re-entrancy here is limited to malicious tokens
 		if (side == Side.SELL) {
 			Bank(bankAddress).withdrawTo(order.user, baseToken, order.baseQuantity);
 		} else if (side == Side.BUY) {

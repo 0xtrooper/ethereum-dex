@@ -1,4 +1,4 @@
-# On-Chain Limit Order Matching Engine for EVM chains
+# On-Chain Limit Order Books for EVM chains
 
 There are 2 versions of EVM orderbooks in this repo. Both charge 0 trading fees by default. Because everything is a 0-trading-fee limit order, execution is better than an AMM like Uniswap where slippage and LP fees can lead to extensive execution loss. 
 

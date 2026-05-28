@@ -50,6 +50,7 @@ func newCancelCommand(cfg *service.Service, ks *service.Keystore) *cobra.Command
 	cmd.Flags().String("base", "", "Base token address or symbol")
 	cmd.Flags().String("quote", "", "Quote token address or symbol")
 	cmd.Flags().String("id", "", "Order id")
+	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompt")
 	return cmd
 }
 
@@ -109,12 +110,15 @@ func processCancel(cmd *cobra.Command, in *cancelIn, cfg *service.Service, ks *s
 	fmt.Fprintf(cmd.OutOrStdout(), "  Base:     %s\n", in.baseToken.Hex())
 	fmt.Fprintf(cmd.OutOrStdout(), "  Quote:    %s\n", in.quoteToken.Hex())
 	fmt.Fprintf(cmd.OutOrStdout(), "  Order ID: %s\n", in.orderID.String())
-	ok, err := prompt.Confirm("Proceed and send cancel transaction")
-	if err != nil {
-		return nil, err
-	}
-	if !ok {
-		return nil, fmt.Errorf("aborted")
+	yes, _ := cmd.Flags().GetBool("yes")
+	if !yes {
+		ok, err := prompt.Confirm("Proceed and send cancel transaction")
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, fmt.Errorf("aborted")
+		}
 	}
 
 	walletService, err := service.NewWallet(ks, in.walletAddress)

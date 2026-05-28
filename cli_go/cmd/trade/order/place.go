@@ -69,6 +69,7 @@ func newPlaceCommand(cfg *service.Service, ks *service.Keystore) *cobra.Command 
 	cmd.Flags().String("base-qty", "", "Base token quantity (decimal token units, e.g. 1.5)")
 	cmd.Flags().String("quote-qty", "", "Quote token quantity (decimal token units, e.g. 2.0)")
 	cmd.Flags().String("value-wei", "", "Native value (decimal ETH units, optional, e.g. 0.1)")
+	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompts")
 	return cmd
 }
 
@@ -231,12 +232,15 @@ func processPlace(cmd *cobra.Command, in *placeIn, cfg *service.Service, ks *ser
 				amount.FormatUnits(requiredAllowance, allowanceDecimals),
 				requiredAllowance.String(),
 			)
-			ok, err := prompt.Confirm("Set allowance now (this sends a separate approve transaction before placing the order)")
-			if err != nil {
-				return nil, err
-			}
-			if !ok {
-				return nil, fmt.Errorf("aborted")
+			yes, _ := cmd.Flags().GetBool("yes")
+			if !yes {
+				ok, err := prompt.Confirm("Set allowance now (this sends a separate approve transaction before placing the order)")
+				if err != nil {
+					return nil, err
+				}
+				if !ok {
+					return nil, fmt.Errorf("aborted")
+				}
 			}
 
 			balance, err := tokenService.BalanceOf(ctx, owner)
@@ -268,7 +272,7 @@ func processPlace(cmd *cobra.Command, in *placeIn, cfg *service.Service, ks *ser
 			fmt.Fprintf(cmd.OutOrStdout(), "  Wallet:  %s\n", in.walletAddress)
 			fmt.Fprintf(cmd.OutOrStdout(), "  Token:   %s\n", allowanceRef)
 			fmt.Fprintf(cmd.OutOrStdout(), "  Amount:  %s (raw: %s)\n", amount.FormatUnits(approveAmount, allowanceDecimals), approveAmount.String())
-			ok, err = prompt.Confirm("Proceed and send approve transaction")
+			ok, err := prompt.Confirm("Proceed and send approve transaction")
 			if err != nil {
 				return nil, err
 			}
@@ -312,22 +316,28 @@ func processPlace(cmd *cobra.Command, in *placeIn, cfg *service.Service, ks *ser
 	}
 
 	if !deployed {
-		ok, err := prompt.Confirm("Market is not deployed for this pair. Deploy market now")
-		if err != nil {
-			return nil, err
-		}
-		if !ok {
-			return nil, fmt.Errorf("aborted")
-		}
-
-		var walletService *service.Wallet
-		if walletForPlaceTx != nil {
-			ok, err = prompt.Confirm("Wallet already unlocked from previous step. Proceed with create market transaction")
+		yes, _ := cmd.Flags().GetBool("yes")
+		if !yes {
+			ok, err := prompt.Confirm("Market is not deployed for this pair. Deploy market now")
 			if err != nil {
 				return nil, err
 			}
 			if !ok {
 				return nil, fmt.Errorf("aborted")
+			}
+		}
+
+		var walletService *service.Wallet
+		if walletForPlaceTx != nil {
+			yes, _ := cmd.Flags().GetBool("yes")
+			if !yes {
+				ok, err := prompt.Confirm("Wallet already unlocked from previous step. Proceed with create market transaction")
+				if err != nil {
+					return nil, err
+				}
+				if !ok {
+					return nil, fmt.Errorf("aborted")
+				}
 			}
 			walletService = walletForPlaceTx
 		} else {
@@ -372,12 +382,15 @@ func processPlace(cmd *cobra.Command, in *placeIn, cfg *service.Service, ks *ser
 
 	var walletService *service.Wallet
 	if walletForPlaceTx != nil {
-		ok, err := prompt.Confirm("Wallet already unlocked from previous step. Proceed with place order transaction")
-		if err != nil {
-			return nil, err
-		}
-		if !ok {
-			return nil, fmt.Errorf("aborted")
+		yes, _ := cmd.Flags().GetBool("yes")
+		if !yes {
+			ok, err := prompt.Confirm("Wallet already unlocked from previous step. Proceed with place order transaction")
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
+				return nil, fmt.Errorf("aborted")
+			}
 		}
 		walletService = walletForPlaceTx
 	} else {

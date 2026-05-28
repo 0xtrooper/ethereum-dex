@@ -56,6 +56,7 @@ func newFillCommand(cfg *service.Service, ks *service.Keystore) *cobra.Command {
 	cmd.Flags().String("id", "", "Order id")
 	cmd.Flags().String("base-qty", "", "Fill base quantity (decimal token units, e.g. 1.5)")
 	cmd.Flags().String("value-wei", "", "Native value (decimal ETH units, optional, e.g. 0.1)")
+	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompts")
 	return cmd
 }
 
@@ -227,12 +228,15 @@ func processFill(cmd *cobra.Command, in *fillIn, cfg *service.Service, ks *servi
 			return nil, fmt.Errorf("max fill is zero (wallet %s balance is zero)", paymentSymbol)
 		}
 
-		ok, err := prompt.Confirm("Max fill is currently zero due to allowance. Set allowance now (this sends a separate approve transaction)")
-		if err != nil {
-			return nil, err
-		}
-		if !ok {
-			return nil, fmt.Errorf("aborted")
+		yes, _ := cmd.Flags().GetBool("yes")
+		if !yes {
+			ok, err := prompt.Confirm("Max fill is currently zero due to allowance. Set allowance now (this sends a separate approve transaction)")
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
+				return nil, fmt.Errorf("aborted")
+			}
 		}
 
 		approveAmount, err := prompt.SelectAllowanceAmount(requiredForFullFill, paymentBalance, paymentDecimals)
@@ -423,12 +427,15 @@ func processFill(cmd *cobra.Command, in *fillIn, cfg *service.Service, ks *servi
 
 	var walletService *service.Wallet
 	if walletForFillTx != nil {
-		ok, err := prompt.Confirm("Wallet already unlocked from allowance step. Proceed with fill transaction")
-		if err != nil {
-			return nil, err
-		}
-		if !ok {
-			return nil, fmt.Errorf("aborted")
+		yes, _ := cmd.Flags().GetBool("yes")
+		if !yes {
+			ok, err := prompt.Confirm("Wallet already unlocked from allowance step. Proceed with fill transaction")
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
+				return nil, fmt.Errorf("aborted")
+			}
 		}
 		walletService = walletForFillTx
 	} else {

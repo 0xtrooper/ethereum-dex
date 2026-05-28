@@ -127,12 +127,15 @@ contract MatchingOrderBook {
 
 			// Place leftover orders in book
 			uint nextOrderId = orderbooks[baseToken][quoteToken][Side.SELL];
+			uint previousOrderId = 0;
 			while (orders[baseToken][quoteToken][side][nextOrderId].price <= price) {
+				previousOrderId = nextOrderId;
 				nextOrderId = orders[baseToken][quoteToken][side][nextOrderId].nextOrderId;
 			}
 			unchecked {
 				orderId = ++orderCounter;
 			}
+			orders[baseToken][quoteToken][side][previousOrderId].nextOrderId = orderId;
 			orders[baseToken][quoteToken][side][orderId] = Order(msg.sender, baseQuantity, price, nextOrderId);
 		} else if (side == Side.BUY) {
 			uint fillOrderId = orderbooks[baseToken][quoteToken][Side.SELL];
@@ -171,13 +174,16 @@ contract MatchingOrderBook {
 			}
 
 			// Place leftover orders in book
-			uint nextOrderId = orderbooks[baseToken][quoteToken][Side.SELL];
+			uint nextOrderId = orderbooks[baseToken][quoteToken][Side.BUY];
+			uint previousOrderId = 0;
 			while (orders[baseToken][quoteToken][side][nextOrderId].price >= price) {
+				previousOrderId = nextOrderId;
 				nextOrderId = orders[baseToken][quoteToken][side][nextOrderId].nextOrderId;
 			}
 			unchecked {
 				orderId = ++orderCounter;
 			}
+			orders[baseToken][quoteToken][side][previousOrderId].nextOrderId = orderId;
 			orders[baseToken][quoteToken][side][orderId] = Order(msg.sender, baseQuantity, price, nextOrderId);
 		}
 

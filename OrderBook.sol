@@ -104,7 +104,7 @@ contract OrderBook {
 				uint afterBalance = quoteTokenIERC20.balanceOf(bankAddress);
 				uint transferredQuoteQuantity = afterBalance - beforeBalance;
 				if (transferredQuoteQuantity != quoteQuantity) {
-					quoteQuantity = transferredQuoteQuantity;
+					price = baseQuantity * quoteTokenDecimals / transferredQuoteQuantity;
 				}
 			}
 		}

@@ -45,6 +45,7 @@ contract MatchingOrderBook {
 		address baseToken;
 		address quoteToken;
 		uint baseMinSize;
+		uint quoteMinSize;
 		address payable bankAddress;
 	}
 	mapping(bytes32 => MarketDetails) MARKET_DETAILS; // market_id -> MarketDetails
@@ -56,23 +57,24 @@ contract MatchingOrderBook {
 	event OrderCanceled(uint indexed orderId);
 	event OrderFill(uint indexed orderId, uint baseQuantity);
 
-	function createMarket(address baseToken, address quoteToken, uint baseMinimum) external {
-		bytes32 marketId = getMarketId(baseToken, quoteToken, baseMinimum);
+	function createMarket(address baseToken, address quoteToken, uint baseMinimum, uint quoteMinimum) external {
+		bytes32 marketId = getMarketId(baseToken, quoteToken, baseMinimum, quoteMinimum);
 		require(MARKET_DETAILS[marketId].bankAddress == address(0), "market has already been created");
 		address payable bankAddress = payable(address(new Bank(address(this))));
-		MARKET_DETAILS[marketId] = MarketDetails(baseToken, quoteToken, baseMinimum, bankAddress);
+		MARKET_DETAILS[marketId] = MarketDetails(baseToken, quoteToken, baseMinimum, quoteMinimum, bankAddress);
 	}
 
 	function placeOrder(bytes32 marketId, Side side, uint baseQuantity, uint price) external payable returns (uint orderId) {
 		MarketDetails memory marketDetails = MARKET_DETAILS[marketId];
 		require(marketDetails.bankAddress != address(0), "createMarket before placing an order on it");
 		require(baseQuantity > 0 && price > 0, "zero quantity/price orders not permitted");
-		bool isFillOrKill = baseQuantity < marketDetails.baseMinSize;
 
 		(bool decimalCallSuccess, uint8 quoteTokenDecimals) = IERC20(marketDetails.quoteToken).tryGetDecimals();
 		require(decimalCallSuccess, "failed to get decimals for token");
 		uint quoteQuantity = baseQuantity * price / 10**quoteTokenDecimals;
 		require(quoteQuantity > 0, "calculated quote quantity is zero");
+
+		bool isFillOrKill = baseQuantity < marketDetails.baseMinSize || quoteQuantity < marketDetails.quoteMinSize;
 
 		require(msg.value == 0, "Cannot send ETH. Use WETH instead.");
 		if (side == Side.SELL) {
@@ -219,8 +221,8 @@ contract MatchingOrderBook {
 		emit OrderCanceled(orderId);
 	}
 
-	function getMarketId(address baseToken, address quoteToken, uint baseMinimum) public pure returns (bytes32) {
-		return sha256(abi.encodePacked(baseToken, quoteToken, baseMinimum));
+	function getMarketId(address baseToken, address quoteToken, uint baseMinimum, uint quoteMinimum) public pure returns (bytes32) {
+		return sha256(abi.encodePacked(baseToken, quoteToken, baseMinimum, quoteMinimum));
 	}
 
 	function getorder(address baseToken, address quoteToken, Side side, uint orderId) external view returns (Order memory) {

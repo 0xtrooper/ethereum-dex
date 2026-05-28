@@ -26,14 +26,14 @@ import (
 const orderRPCConnectTimeout = 15 * time.Second
 
 type placeIn struct {
-	contractAddress  string
-	walletAddress    string
-	baseToken        common.Address
-	quoteToken       common.Address
-	side             uint8
-	baseQuantityRaw  string
-	quoteQuantityRaw string
-	valueRaw         string
+	contractAddress string
+	walletAddress   string
+	baseToken       common.Address
+	quoteToken      common.Address
+	side            uint8
+	baseQuantityRaw string
+	priceRaw        string
+	valueRaw        string
 }
 
 type placeOut struct {
@@ -122,7 +122,7 @@ func inputPlace(cmd *cobra.Command, cfg *service.Service, ks *service.Keystore) 
 	if err != nil {
 		return nil, err
 	}
-	quoteQuantityRaw, err := orderReadAmountFlag(cmd, "quote-qty", limitPricePrompt, true)
+	priceRaw, err := orderReadAmountFlag(cmd, "quote-qty", limitPricePrompt, true)
 	if err != nil {
 		return nil, err
 	}
@@ -132,14 +132,14 @@ func inputPlace(cmd *cobra.Command, cfg *service.Service, ks *service.Keystore) 
 	}
 
 	return &placeIn{
-		contractAddress:  contractAddress,
-		walletAddress:    walletAddress,
-		baseToken:        baseToken,
-		quoteToken:       quoteToken,
-		side:             side,
-		baseQuantityRaw:  baseQuantityRaw,
-		quoteQuantityRaw: quoteQuantityRaw,
-		valueRaw:         valueRaw,
+		contractAddress: contractAddress,
+		walletAddress:   walletAddress,
+		baseToken:       baseToken,
+		quoteToken:      quoteToken,
+		side:            side,
+		baseQuantityRaw: baseQuantityRaw,
+		priceRaw:        priceRaw,
+		valueRaw:        valueRaw,
 	}, nil
 }
 
@@ -172,10 +172,13 @@ func processPlace(cmd *cobra.Command, in *placeIn, cfg *service.Service, ks *ser
 	if err != nil {
 		return nil, fmt.Errorf("invalid base quantity %q: %w", in.baseQuantityRaw, err)
 	}
-	quoteQuantity, err := amount.ParseUnits(in.quoteQuantityRaw, quoteDecimals)
+	price, err := amount.ParseUnits(in.priceRaw, quoteDecimals)
 	if err != nil {
-		return nil, fmt.Errorf("invalid quote quantity %q: %w", in.quoteQuantityRaw, err)
+		return nil, fmt.Errorf("invalid price %q: %w", in.priceRaw, err)
 	}
+	// quoteQuantity = baseQuantity * price / 10**quoteDecimals (mirrors contract logic, used for allowance)
+	exp := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(quoteDecimals)), nil)
+	quoteQuantity := new(big.Int).Div(new(big.Int).Mul(baseQuantity, price), exp)
 
 	value := big.NewInt(0)
 	if strings.TrimSpace(in.valueRaw) != "" {
@@ -365,7 +368,7 @@ func processPlace(cmd *cobra.Command, in *placeIn, cfg *service.Service, ks *ser
 	fmt.Fprintf(cmd.OutOrStdout(), "  Base:   %s\n", in.baseToken.Hex())
 	fmt.Fprintf(cmd.OutOrStdout(), "  Quote:  %s\n", in.quoteToken.Hex())
 	fmt.Fprintf(cmd.OutOrStdout(), "  Amount: %s (raw: %s)\n", amount.FormatUnits(baseQuantity, baseDecimals), baseQuantity.String())
-	fmt.Fprintf(cmd.OutOrStdout(), "  Price:  %s (raw: %s)\n", amount.FormatUnits(quoteQuantity, quoteDecimals), quoteQuantity.String())
+	fmt.Fprintf(cmd.OutOrStdout(), "  Price:  %s (raw: %s)\n", amount.FormatUnits(price, quoteDecimals), price.String())
 
 	var walletService *service.Wallet
 	if walletForPlaceTx != nil {
@@ -393,7 +396,7 @@ func processPlace(cmd *cobra.Command, in *placeIn, cfg *service.Service, ks *ser
 		return nil, err
 	}
 
-	placeTx, err := orderbookWriteService.PlaceOrder(ctx, in.baseToken, in.quoteToken, in.side, baseQuantity, quoteQuantity, value)
+	placeTx, err := orderbookWriteService.PlaceOrder(ctx, in.baseToken, in.quoteToken, in.side, baseQuantity, price, value)
 	if err != nil {
 		return nil, err
 	}

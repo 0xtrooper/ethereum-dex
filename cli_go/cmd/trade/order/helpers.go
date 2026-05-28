@@ -217,7 +217,11 @@ func orderReadAmountFlag(cmd *cobra.Command, flagName string, promptLabel string
 			if err := cmd.Flags().Set(flagName, value); err != nil {
 				return "", err
 			}
+			if value == "" {
+				continue
+			}
 		}
+		return value, nil
 	}
 }
 

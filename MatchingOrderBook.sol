@@ -109,7 +109,7 @@ contract MatchingOrderBook {
 					delete orders[marketDetails.baseToken][marketDetails.quoteToken][Side.BUY][fillOrderId];
 					orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.BUY] = fillOrder.nextOrderId;
 					emit OrderFill(fillOrderId, fillOrder.baseQuantity);
-					uint fillOrderQuoteQuantity = fillOrder.baseQuantity * fillOrder.price;
+					uint fillOrderQuoteQuantity = fillOrder.baseQuantity * fillOrder.price / 10**quoteTokenDecimals;
 					Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, fillOrderQuoteQuantity);
 					Bank(marketDetails.bankAddress).withdrawTo(fillOrder.user, marketDetails.baseToken, baseQuantity);
 					break;
@@ -117,7 +117,7 @@ contract MatchingOrderBook {
 				else if (baseQuantity > fillOrder.baseQuantity) {
 					delete orders[marketDetails.baseToken][marketDetails.quoteToken][Side.BUY][fillOrderId];
 					emit OrderFill(fillOrderId, fillOrder.baseQuantity);
-					uint fillOrderQuoteQuantity = fillOrder.baseQuantity * fillOrder.price;
+					uint fillOrderQuoteQuantity = fillOrder.baseQuantity * fillOrder.price / 10**quoteTokenDecimals;
 					Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, fillOrderQuoteQuantity);
 					Bank(marketDetails.bankAddress).withdrawTo(fillOrder.user, marketDetails.baseToken, fillOrder.baseQuantity);
 					baseQuantity -= fillOrder.baseQuantity;
@@ -127,7 +127,7 @@ contract MatchingOrderBook {
 					orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.BUY] = fillOrderId;
 					orders[marketDetails.baseToken][marketDetails.quoteToken][Side.BUY][fillOrderId].baseQuantity -= baseQuantity;
 					emit OrderFill(fillOrderId, baseQuantity);
-					uint fillQuoteQuantity = baseQuantity * fillOrder.price;
+					uint fillQuoteQuantity = baseQuantity * fillOrder.price / 10**quoteTokenDecimals;
 					Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, fillQuoteQuantity);
 					Bank(marketDetails.bankAddress).withdrawTo(fillOrder.user, marketDetails.baseToken, baseQuantity);
 					baseQuantity = 0;
@@ -158,7 +158,7 @@ contract MatchingOrderBook {
 					delete orders[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL][fillOrderId];
 					orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL] = fillOrder.nextOrderId;
 					emit OrderFill(fillOrderId, fillOrder.baseQuantity);
-					uint fillOrderQuoteQuantity = fillOrder.baseQuantity * fillOrder.price;
+					uint fillOrderQuoteQuantity = fillOrder.baseQuantity * fillOrder.price / 10**quoteTokenDecimals;
 					Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, fillOrderQuoteQuantity);
 					Bank(marketDetails.bankAddress).withdrawTo(fillOrder.user, marketDetails.baseToken, baseQuantity);
 					break;
@@ -166,7 +166,7 @@ contract MatchingOrderBook {
 				else if (baseQuantity > fillOrder.baseQuantity) {
 					delete orders[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL][fillOrderId];
 					emit OrderFill(fillOrderId, fillOrder.baseQuantity);
-					uint fillOrderQuoteQuantity = fillOrder.baseQuantity * fillOrder.price;
+					uint fillOrderQuoteQuantity = fillOrder.baseQuantity * fillOrder.price / 10**quoteTokenDecimals;
 					Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, fillOrderQuoteQuantity);
 					Bank(marketDetails.bankAddress).withdrawTo(fillOrder.user, marketDetails.baseToken, fillOrder.baseQuantity);
 					baseQuantity -= fillOrder.baseQuantity;
@@ -176,7 +176,7 @@ contract MatchingOrderBook {
 					orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL] = fillOrderId;
 					orders[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL][fillOrderId].baseQuantity -= baseQuantity;
 					emit OrderFill(fillOrderId, baseQuantity);
-					uint fillQuoteQuantity = baseQuantity * fillOrder.price;
+					uint fillQuoteQuantity = baseQuantity * fillOrder.price / 10**quoteTokenDecimals;
 					Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, fillQuoteQuantity);
 					Bank(marketDetails.bankAddress).withdrawTo(fillOrder.user, marketDetails.baseToken, baseQuantity);
 					baseQuantity = 0;

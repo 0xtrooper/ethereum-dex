@@ -85,6 +85,7 @@ contract MatchingOrderBook {
 			uint transferredQuoteQuantity = afterBalance - beforeBalance;
 			if (transferredQuoteQuantity != quoteQuantity) {
 				quoteQuantity = transferredQuoteQuantity;
+				price = baseQuantity * quoteTokenDecimals / transferredQuoteQuantity;
 			}
 		}
 

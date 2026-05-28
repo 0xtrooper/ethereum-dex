@@ -25,7 +25,7 @@ contract OrderBookTest is Test {
 	function testPlaceOrderBeforeMarketCreation() public {
 		vm.expectRevert("createMarket before placing an order on it"); 
 		vm.prank(user1);
-		orderBook.placeOrder(address(EURT), address(USDC), OrderBook.Side.SELL, 115 * 1e6, 100 * 1e6);
+		orderBook.placeOrder(address(EURT), address(USDC), OrderBook.Side.SELL, 115 * 1e6, 115 * 1e6);
 	}
 
 	function testCreateMarket() public {
@@ -51,11 +51,11 @@ contract OrderBookTest is Test {
 		USDC.approve(address(orderBook), 100e18);
 		USDC.mint(user1, 1000*1e18);
 		vm.prank(user1);
-		uint orderId = orderBook.placeOrder(address(USDC), address(EURT), OrderBook.Side.SELL, 100 * 1e18, 115 * 1e18);
+		uint orderId = orderBook.placeOrder(address(USDC), address(EURT), OrderBook.Side.SELL, 100 * 1e18, 1e6);
 	        OrderBook.Order memory order = orderBook.getorder(address(USDC), address(EURT), orderId);
 		assertEq(order.user, user1, "User should match");
 		assertEq(order.baseQuantity, 100 * 1e18, "Base Quantity should match");
-		assertEq(order.quoteQuantity, 115 * 1e18, "Quote Quantity should match");
+		assertEq(order.price, 1e6, "Price should match");
 		address payable bank = orderBook.getBankAddress(address(USDC), address(EURT));
 		uint bankUsdcBalance = USDC.balanceOf(bank);
 		assertEq(bankUsdcBalance, 100e18);
@@ -69,7 +69,7 @@ contract OrderBookTest is Test {
 	        OrderBook.Order memory order = orderBook.getorder(address(0), address(USDC), orderId);
 		assertEq(order.user, user1, "User should match");
 		assertEq(order.baseQuantity, 1 * 1e18, "Base Quantity should match");
-		assertEq(order.quoteQuantity, 2150 * 1e6, "Quote Quantity should match");
+		assertEq(order.price, 2150 * 1e6, "Price should match");
 	}
 
 	function testPlace2ETHOrdersForGasDifference() public {
@@ -86,13 +86,13 @@ contract OrderBookTest is Test {
 		USDC.approve(address(orderBook), 300e18);
 		USDC.mint(user1, 1000*1e18);
 		vm.prank(user1);
-		uint orderId = orderBook.placeOrder(address(USDC), address(EURT), OrderBook.Side.SELL, 100 * 1e18, 115 * 1e18);
+		uint orderId = orderBook.placeOrder(address(USDC), address(EURT), OrderBook.Side.SELL, 100 * 1e18, 87e4);
 	        OrderBook.Order memory order = orderBook.getorder(address(USDC), address(EURT), orderId);
 		assertEq(order.user, user1, "User should match");
 		assertEq(order.baseQuantity, 100 * 1e18, "Base Quantity should match");
-		assertEq(order.quoteQuantity, 115 * 1e18, "Quote Quantity should match");
+		assertEq(order.price, 87e4, "Price should match");
 		vm.prank(user1);
-		orderBook.placeOrder(address(USDC), address(EURT), OrderBook.Side.SELL, 100 * 1e18, 115 * 1e18);
+		orderBook.placeOrder(address(USDC), address(EURT), OrderBook.Side.SELL, 100 * 1e18, 88e4);
 	}
 
 	function testCancelOrder() public {
@@ -101,17 +101,17 @@ contract OrderBookTest is Test {
 		USDC.approve(address(orderBook), 300e18);
 		USDC.mint(user1, 1000*1e18);
 		vm.prank(user1);
-		uint orderId = orderBook.placeOrder(address(USDC), address(EURT), OrderBook.Side.SELL, 100 * 1e18, 115 * 1e18);
+		uint orderId = orderBook.placeOrder(address(USDC), address(EURT), OrderBook.Side.SELL, 100 * 1e18, 1e6);
 	        OrderBook.Order memory order = orderBook.getorder(address(USDC), address(EURT), orderId);
 		assertEq(order.user, user1, "User should match");
 		assertEq(order.baseQuantity, 100 * 1e18, "Base Quantity should match");
-		assertEq(order.quoteQuantity, 115 * 1e18, "Quote Quantity should match");
+		assertEq(order.price, 1e6, "Price should match");
 		vm.prank(user1);
 		orderBook.cancelOrder(address(USDC), address(EURT), orderId);
 	        order = orderBook.getorder(address(USDC), address(EURT), orderId);
 		assertEq(order.user, address(0), "User should be deleted");
 		assertEq(order.baseQuantity, 0, "Base Quantity should be deleted");
-		assertEq(order.quoteQuantity, 0, "Quote Quantity should be deleted");
+		assertEq(order.price, 0, "Price should be deleted");
 	}
 
 	function testDoubleCancelOrderFail() public {
@@ -120,17 +120,17 @@ contract OrderBookTest is Test {
 		USDC.approve(address(orderBook), 300e18);
 		USDC.mint(user1, 1000*1e18);
 		vm.prank(user1);
-		uint orderId = orderBook.placeOrder(address(USDC), address(EURT), OrderBook.Side.SELL, 100 * 1e18, 115 * 1e18);
+		uint orderId = orderBook.placeOrder(address(USDC), address(EURT), OrderBook.Side.SELL, 100 * 1e18, 1e6);
 	        OrderBook.Order memory order = orderBook.getorder(address(USDC), address(EURT), orderId);
 		assertEq(order.user, user1, "User should match");
 		assertEq(order.baseQuantity, 100 * 1e18, "Base Quantity should match");
-		assertEq(order.quoteQuantity, 115 * 1e18, "Quote Quantity should match");
+		assertEq(order.price, 1e6, "Price should match");
 		vm.prank(user1);
 		orderBook.cancelOrder(address(USDC), address(EURT), orderId);
 	        order = orderBook.getorder(address(USDC), address(EURT), orderId);
 		assertEq(order.user, address(0), "User should be deleted");
 		assertEq(order.baseQuantity, 0, "Base Quantity should be deleted");
-		assertEq(order.quoteQuantity, 0, "Quote Quantity should be deleted");
+		assertEq(order.price, 0, "Price should be deleted");
 		vm.expectRevert("users can only cancel their own order / order may not exist");
 		orderBook.cancelOrder(address(USDC), address(EURT), orderId);
 	}
@@ -141,11 +141,11 @@ contract OrderBookTest is Test {
 		USDC.approve(address(orderBook), 300e18);
 		USDC.mint(user1, 1000*1e18);
 		vm.prank(user1);
-		uint orderId = orderBook.placeOrder(address(USDC), address(EURT), OrderBook.Side.SELL, 100 * 1e18, 115 * 1e18);
+		uint orderId = orderBook.placeOrder(address(USDC), address(EURT), OrderBook.Side.SELL, 100 * 1e18, 1e6);
 	        OrderBook.Order memory order = orderBook.getorder(address(USDC), address(EURT), orderId);
 		assertEq(order.user, user1, "User should match");
 		assertEq(order.baseQuantity, 100 * 1e18, "Base Quantity should match");
-		assertEq(order.quoteQuantity, 115 * 1e18, "Quote Quantity should match");
+		assertEq(order.price, 1e6, "Price should match");
 		vm.prank(user2);
 		vm.expectRevert("users can only cancel their own order / order may not exist");
 		orderBook.cancelOrder(address(USDC), address(EURT), orderId);
@@ -157,11 +157,11 @@ contract OrderBookTest is Test {
 		EURT.approve(address(orderBook), 300e6);
 		EURT.mint(user1, 1000*1e6);
 		vm.prank(user1);
-		uint orderId = orderBook.placeOrder(address(EURT), address(USDC), OrderBook.Side.SELL, 115 * 1e6, 100 * 1e6);
+		uint orderId = orderBook.placeOrder(address(EURT), address(USDC), OrderBook.Side.SELL, 115 * 1e6, 115e4);
 	        OrderBook.Order memory order = orderBook.getorder(address(EURT), address(USDC), orderId);
 		assertEq(order.user, user1, "User should match");
 		assertEq(order.baseQuantity, 115 * 1e6, "Base Quantity should match");
-		assertEq(order.quoteQuantity, 100 * 1e6, "Quote Quantity should match");
+		assertEq(order.price, 115e4, "Price should match");
 		vm.prank(user2);
 		USDC.approve(address(orderBook), 400e6);
 		USDC.mint(user2, 1000e6);
@@ -170,7 +170,7 @@ contract OrderBookTest is Test {
 	        order = orderBook.getorder(address(EURT), address(USDC), orderId);
 		assertEq(order.user, user1, "User should be user who placed order");
 		assertEq(order.baseQuantity, 15e6, "Remaining Base Quantity is wrong");
-		assertEq(order.quoteQuantity, 100e6 - uint(100e6) * uint(100e6) / uint(115e6), "Remaining Quote Quantity is wrong");
+		assertEq(order.price, 115e4, "Price shouldn't change");
 	}
 
 	function testBalances() public {
@@ -195,7 +195,7 @@ contract OrderBookTest is Test {
 		EURT.approve(address(orderBook), 300e6);
 		EURT.mint(user1, 1000*1e6);
 		vm.prank(user1);
-		uint orderId = orderBook.placeOrder(address(EURT), address(USDC), OrderBook.Side.SELL, 100 * 1e6, 100 * 1e6);
+		uint orderId = orderBook.placeOrder(address(EURT), address(USDC), OrderBook.Side.SELL, 100e6, 1e6);
 		vm.prank(user2);
 		USDC.approve(address(orderBook), 400e6);
 		USDC.mint(user2, 1000e6);
@@ -216,11 +216,11 @@ contract OrderBookTest is Test {
 		EURT.approve(address(orderBook), 300e6);
 		EURT.mint(user1, 1000*1e6);
 		vm.prank(user1);
-		uint orderId = orderBook.placeOrder(address(EURT), address(USDC), OrderBook.Side.SELL, 115 * 1e6, 100 * 1e6);
+		uint orderId = orderBook.placeOrder(address(EURT), address(USDC), OrderBook.Side.SELL, 115 * 1e6, 1e6);
 	        OrderBook.Order memory order = orderBook.getorder(address(EURT), address(USDC), orderId);
 		assertEq(order.user, user1, "User should match");
 		assertEq(order.baseQuantity, 115 * 1e6, "Base Quantity should match");
-		assertEq(order.quoteQuantity, 100 * 1e6, "Quote Quantity should match");
+		assertEq(order.price, 1e6, "Price should match");
 		vm.prank(user2);
 		USDC.approve(address(orderBook), 400e6);
 		USDC.mint(user2, 1000e6);
@@ -229,15 +229,14 @@ contract OrderBookTest is Test {
 	        order = orderBook.getorder(address(EURT), address(USDC), orderId);
 		assertEq(order.user, user1, "User should be user who placed order");
 		assertEq(order.baseQuantity, 15e6, "Remaining Base Quantity is wrong");
-		assertEq(order.quoteQuantity, 100e6 - uint(100e6) * uint(100e6) / uint(115e6), "Remaining Quote Quantity is wrong");
+		assertEq(order.price, 1e6, "Price shouldn't change");
 
 		vm.prank(user2);
 		orderBook.fillOrder(orderId, address(EURT), address(USDC), 15e6);
 	        order = orderBook.getorder(address(EURT), address(USDC), orderId);
-	        order = orderBook.getorder(address(EURT), address(USDC), orderId);
-		assertEq(order.user, address(0), "User should be user who placed order");
+		assertEq(order.user, address(0), "User should be deleted after order fill");
 		assertEq(order.baseQuantity, 0, "Remaining Base Quantity is wrong");
-		assertEq(order.quoteQuantity, 0, "Remaining Quote Quantity is wrong");
+		assertEq(order.price, 0, "Order should be deleted after fill");
 	}
 
 	function testFullFillOrder() public {
@@ -246,20 +245,20 @@ contract OrderBookTest is Test {
 		EURT.approve(address(orderBook), 300e6);
 		EURT.mint(user1, 1000*1e6);
 		vm.prank(user1);
-		uint orderId = orderBook.placeOrder(address(EURT), address(USDC), OrderBook.Side.SELL, 115 * 1e6, 100 * 1e6);
+		uint orderId = orderBook.placeOrder(address(EURT), address(USDC), OrderBook.Side.SELL, 115 * 1e6, 1e6);
 	        OrderBook.Order memory order = orderBook.getorder(address(EURT), address(USDC), orderId);
 		assertEq(order.user, user1, "User should match");
 		assertEq(order.baseQuantity, 115 * 1e6, "Base Quantity should match");
-		assertEq(order.quoteQuantity, 100 * 1e6, "Quote Quantity should match");
+		assertEq(order.price, 1e6, "Price should match");
 		vm.prank(user2);
 		USDC.approve(address(orderBook), 400e6);
 		USDC.mint(user2, 1000e6);
 		vm.prank(user2);
 		orderBook.fillOrder(orderId, address(EURT), address(USDC), 115e6);
 	        order = orderBook.getorder(address(EURT), address(USDC), orderId);
-		assertEq(order.user, address(0), "User should be user who placed order");
-		assertEq(order.baseQuantity, 0, "Remaining Base Quantity is wrong");
-		assertEq(order.quoteQuantity, 0, "Remaining Quote Quantity is wrong");
+		assertEq(order.user, address(0), "Order should be deleted after fill");
+		assertEq(order.baseQuantity, 0, "Order should be deleted after fill");
+		assertEq(order.price, 0, "Order should be deleted after fill");
 	}
 
 	function testFillTooMuch() public {
@@ -268,11 +267,11 @@ contract OrderBookTest is Test {
 		EURT.approve(address(orderBook), 300e6);
 		EURT.mint(user1, 1000*1e6);
 		vm.prank(user1);
-		uint orderId = orderBook.placeOrder(address(EURT), address(USDC), OrderBook.Side.SELL, 115 * 1e6, 100 * 1e6);
+		uint orderId = orderBook.placeOrder(address(EURT), address(USDC), OrderBook.Side.SELL, 115 * 1e6, 1e6);
 	        OrderBook.Order memory order = orderBook.getorder(address(EURT), address(USDC), orderId);
 		assertEq(order.user, user1, "User should match");
 		assertEq(order.baseQuantity, 115 * 1e6, "Base Quantity should match");
-		assertEq(order.quoteQuantity, 100 * 1e6, "Quote Quantity should match");
+		assertEq(order.price, 1e6, "Price should match");
 		vm.prank(user2);
 		USDC.approve(address(orderBook), 400e6);
 		USDC.mint(user2, 1000e6);
@@ -287,11 +286,11 @@ contract OrderBookTest is Test {
 		EURT.approve(address(orderBook), 300e6);
 		EURT.mint(user1, 1000*1e6);
 		vm.prank(user1);
-		uint orderId = orderBook.placeOrder(address(EURT), address(USDC), OrderBook.Side.SELL, 115 * 1e6, 100 * 1e6);
+		uint orderId = orderBook.placeOrder(address(EURT), address(USDC), OrderBook.Side.SELL, 115 * 1e6, 1e6);
 	        OrderBook.Order memory order = orderBook.getorder(address(EURT), address(USDC), orderId);
 		assertEq(order.user, user1, "User should match");
 		assertEq(order.baseQuantity, 115 * 1e6, "Base Quantity should match");
-		assertEq(order.quoteQuantity, 100 * 1e6, "Quote Quantity should match");
+		assertEq(order.price, 1e6, "Price should match");
 		vm.prank(user2);
 		USDC.approve(address(orderBook), 400e6);
 		USDC.mint(user2, 1000e6);
@@ -300,7 +299,7 @@ contract OrderBookTest is Test {
 	        order = orderBook.getorder(address(EURT), address(USDC), orderId);
 		assertEq(order.user, user1, "User should be user who placed order");
 		assertEq(order.baseQuantity, 15e6, "Remaining Base Quantity is wrong");
-		assertEq(order.quoteQuantity, 100e6 - uint(100e6) * uint(100e6) / uint(115e6), "Remaining Quote Quantity is wrong");
+		assertEq(order.price, 1e6, "Remaining Quote Quantity is wrong");
 		vm.prank(user2);
 		vm.expectRevert("trying to fill more than order size");
 		orderBook.fillOrder(orderId, address(EURT), address(USDC), 20e6);

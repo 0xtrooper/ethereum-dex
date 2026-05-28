@@ -2,9 +2,9 @@
 
 There are 2 versions of EVM orderbooks in this repo. 
 
-One is a scalable system for high-fee chains like Ethereum that allows for decentralized operation via an indexer that can be run locally or remotely: [Orderbook.sol](OrderBook.sol). 
+One is a scalable system for high-fee chains like Ethereum that allows for decentralized operation via an indexer that can be run locally or remotely: [Orderbook.sol](OrderBook.sol). There are no order minimums and the system can handle spam and dust orders with no issues. 
 
-The other is an on-chain matching engine that consumes more gas but permits full on-chain matching for low-fee chains: [MatchingOrderbook.sol](MatchingOrderBook.sol). 
+The other is an on-chain matching engine that consumes more gas but permits full on-chain matching for low-fee chains: [MatchingOrderbook.sol](MatchingOrderBook.sol). If too many place small orders, it might cause an issue (will have to verify with testing). But using a governance mechanism to impose minimum order sizes on different currencies/markets would fix this issues similar to how most exchanges have a 10 USDT minimum on limit orders. The issue here is the same, orders that are filled immediately against the book are not an issue. They can be as small as the user requires. But orders that get posted on to the book might require a minimum size that can be set via a governance method. This would also justify the charging of a fee for a market which can be used to pay the market administrators along with tokenholders if need be. 
 
 Both versions have a risk isolation system to prevent malicious tokens from attacking other markets, and have support for both regular ERC20 and non-standard fee-for-transfer tokens.
 

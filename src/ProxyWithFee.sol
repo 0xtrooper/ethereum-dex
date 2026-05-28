@@ -34,7 +34,9 @@ contract ProxyWithFee {
 		OrderBook orderBook = OrderBook(ORDERBOOK_CONTRACT_ADDRESS);
 		OrderBook.Order memory order = orderBook.getorder(baseToken, quoteToken, orderId);
 
-		uint quoteQuantity = baseQuantity * order.quoteQuantity / order.baseQuantity;
+		(bool decimalCallSuccess, uint8 quoteTokenDecimals) = IERC20(quoteToken).tryGetDecimals();
+		require(decimalCallSuccess, "failed to get decimals for token");
+		uint quoteQuantity = baseQuantity * order.price / 10**quoteTokenDecimals;
 
 		IERC20 quoteTokenIERC20 = IERC20(quoteToken);
 		IERC20 baseTokenIERC20 = IERC20(baseToken);

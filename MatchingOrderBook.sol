@@ -64,7 +64,7 @@ contract MatchingOrderBook {
 
 		(bool decimalCallSuccess, uint8 quoteTokenDecimals) = IERC20(quoteToken).tryGetDecimals();
 		require(decimalCallSuccess, "failed to get decimals for token");
-		uint quoteQuantity = baseQuantity * price / quoteTokenDecimals;
+		uint quoteQuantity = baseQuantity * price / 10**quoteTokenDecimals;
 		require(quoteQuantity > 0, "calculated quote quantity is zero");
 
 		require(msg.value == 0, "Cannot send ETH. Use WETH instead.");
@@ -85,7 +85,7 @@ contract MatchingOrderBook {
 			uint transferredQuoteQuantity = afterBalance - beforeBalance;
 			if (transferredQuoteQuantity != quoteQuantity) {
 				quoteQuantity = transferredQuoteQuantity;
-				price = baseQuantity * quoteTokenDecimals / transferredQuoteQuantity;
+				price = baseQuantity * 10**quoteTokenDecimals / transferredQuoteQuantity;
 			}
 		}
 
@@ -204,7 +204,7 @@ contract MatchingOrderBook {
 		} else if (side == Side.BUY) {
 			(bool decimalCallSuccess, uint8 quoteTokenDecimals) = IERC20(quoteToken).tryGetDecimals();
 			require(decimalCallSuccess, "failed to get decimals for token");
-			uint quoteQuantity = order.baseQuantity * order.price / quoteTokenDecimals;
+			uint quoteQuantity = order.baseQuantity * order.price / 10**quoteTokenDecimals;
 			Bank(bankAddress).withdrawTo(order.user, quoteToken, quoteQuantity);
 		}
 		emit OrderCanceled(orderId);

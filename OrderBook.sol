@@ -71,7 +71,7 @@ contract OrderBook {
 
 		(bool decimalCallSuccess, uint8 quoteTokenDecimals) = IERC20(quoteToken).tryGetDecimals();
 		require(decimalCallSuccess, "failed to get decimals for token");
-		uint quoteQuantity = baseQuantity * price / quoteTokenDecimals;
+		uint quoteQuantity = baseQuantity * price / 10**quoteTokenDecimals;
 		require(quoteQuantity > 0, "calculated quote quantity is zero");
 
 		if (side == Side.SELL) {
@@ -104,7 +104,7 @@ contract OrderBook {
 				uint afterBalance = quoteTokenIERC20.balanceOf(bankAddress);
 				uint transferredQuoteQuantity = afterBalance - beforeBalance;
 				if (transferredQuoteQuantity != quoteQuantity) {
-					price = baseQuantity * quoteTokenDecimals / transferredQuoteQuantity;
+					price = baseQuantity * 10**quoteTokenDecimals / transferredQuoteQuantity;
 				}
 			}
 		}
@@ -129,7 +129,7 @@ contract OrderBook {
 		} else if (order.side == Side.BUY) {
 			(bool decimalCallSuccess, uint8 quoteTokenDecimals) = IERC20(quoteToken).tryGetDecimals();
 			require(decimalCallSuccess, "failed to get decimals for token");
-			uint quoteQuantity = order.baseQuantity * order.price / quoteTokenDecimals;
+			uint quoteQuantity = order.baseQuantity * order.price / 10**quoteTokenDecimals;
 			Bank(bankAddress).withdrawTo(order.user, quoteToken, quoteQuantity);
 		}
 		emit OrderCanceled(orderId);
@@ -145,7 +145,7 @@ contract OrderBook {
 
 		(bool decimalCallSuccess, uint8 quoteTokenDecimals) = IERC20(quoteToken).tryGetDecimals();
 		require(decimalCallSuccess, "failed to get decimals for token");
-		uint quoteQuantityToFill = baseQuantityToFill * order.price / quoteTokenDecimals;
+		uint quoteQuantityToFill = baseQuantityToFill * order.price / 10**quoteTokenDecimals;
 		require(quoteQuantityToFill > 0, "calculated quote quantity is zero");
 
 		if (msg.value > 0) {

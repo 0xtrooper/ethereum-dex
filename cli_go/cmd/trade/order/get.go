@@ -29,6 +29,8 @@ type getIn struct {
 }
 
 type getOut struct {
+	status              string
+	active              bool
 	user                string
 	baseToken           string
 	quoteToken          string
@@ -118,7 +120,12 @@ func processGet(in *getIn, cfg *service.Service) (*getOut, error) {
 	}
 
 	side := "unknown"
-	if orderValue.Side == service.OrderSideBuy {
+	active := orderValue.User != (common.Address{}) && orderValue.BaseQuantity != nil && orderValue.BaseQuantity.Sign() > 0
+	status := "active"
+	if !active {
+		status = "inactive (order not found, canceled, or fully filled)"
+		side = "n/a"
+	} else if orderValue.Side == service.OrderSideBuy {
 		side = "buy"
 	} else if orderValue.Side == service.OrderSideSell {
 		side = "sell"
@@ -142,6 +149,8 @@ func processGet(in *getIn, cfg *service.Service) (*getOut, error) {
 	}
 
 	return &getOut{
+		status:              status,
+		active:              active,
 		user:                orderValue.User.Hex(),
 		baseToken:           service.FormatTokenRef(baseSymbol, in.baseToken.Hex()),
 		quoteToken:          service.FormatTokenRef(quoteSymbol, in.quoteToken.Hex()),
@@ -156,6 +165,11 @@ func processGet(in *getIn, cfg *service.Service) (*getOut, error) {
 }
 
 func outputGet(cmd *cobra.Command, out *getOut) error {
+	if !out.active {
+		fmt.Fprintf(cmd.OutOrStdout(), "Status: %s\n", out.status)
+		return nil
+	}
+
 	sideDetail := ""
 	if out.side == "sell" && out.quoteSymbol != "" && out.baseSymbol != "" {
 		sideDetail = fmt.Sprintf(" (%s -> %s)", out.quoteSymbol, out.baseSymbol)
@@ -163,6 +177,7 @@ func outputGet(cmd *cobra.Command, out *getOut) error {
 		sideDetail = fmt.Sprintf(" (%s -> %s)", out.baseSymbol, out.quoteSymbol)
 	}
 
+	fmt.Fprintf(cmd.OutOrStdout(), "Status: %s\n", out.status)
 	fmt.Fprintf(cmd.OutOrStdout(), "Maker: %s\n", out.user)
 	fmt.Fprintf(cmd.OutOrStdout(), "Base Token: %s\n", out.baseToken)
 	fmt.Fprintf(cmd.OutOrStdout(), "Quote Token: %s\n", out.quoteToken)

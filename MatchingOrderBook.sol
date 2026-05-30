@@ -137,16 +137,21 @@ contract MatchingOrderBook {
 
 			// Place leftover orders in book
 			require(!isFillOrKill, "order size is too small to post. defaulted to fill or kill and failed.");
-			uint nextOrderId = orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL];
-			uint previousOrderId = 0;
-			while (nextOrderId != 0 && orders[marketDetails.baseToken][marketDetails.quoteToken][side][nextOrderId].price <= price) {
-				previousOrderId = nextOrderId;
-				nextOrderId = orders[marketDetails.baseToken][marketDetails.quoteToken][side][nextOrderId].nextOrderId;
-			}
 			unchecked {
 				orderId = ++orderCounter;
 			}
-			orders[marketDetails.baseToken][marketDetails.quoteToken][side][previousOrderId].nextOrderId = orderId;
+			uint nextOrderId = orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL];
+			if (nextOrderId == 0) {
+				orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL] = orderId;
+			}
+			else {
+				uint previousOrderId = 0;
+				while (nextOrderId != 0 && orders[marketDetails.baseToken][marketDetails.quoteToken][side][nextOrderId].price <= price) {
+					previousOrderId = nextOrderId;
+					nextOrderId = orders[marketDetails.baseToken][marketDetails.quoteToken][side][nextOrderId].nextOrderId;
+				}
+				orders[marketDetails.baseToken][marketDetails.quoteToken][side][previousOrderId].nextOrderId = orderId;
+			}
 			orders[marketDetails.baseToken][marketDetails.quoteToken][side][orderId] = Order(msg.sender, baseQuantity, price, nextOrderId);
 		} else if (side == Side.BUY) {
 			uint fillOrderId = orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL];
@@ -186,16 +191,21 @@ contract MatchingOrderBook {
 
 			// Place leftover orders in book
 			require(!isFillOrKill, "order size is too small to post. defaulted to fill or kill and failed.");
-			uint nextOrderId = orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.BUY];
-			uint previousOrderId = 0;
-			while (nextOrderId != 0 && orders[marketDetails.baseToken][marketDetails.quoteToken][side][nextOrderId].price >= price) {
-				previousOrderId = nextOrderId;
-				nextOrderId = orders[marketDetails.baseToken][marketDetails.quoteToken][side][nextOrderId].nextOrderId;
-			}
 			unchecked {
 				orderId = ++orderCounter;
 			}
-			orders[marketDetails.baseToken][marketDetails.quoteToken][side][previousOrderId].nextOrderId = orderId;
+			uint nextOrderId = orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.BUY];
+			if (nextOrderId == 0) {
+				orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.BUY] = orderId;
+			}
+			else {
+				uint previousOrderId = 0;
+				while (nextOrderId != 0 && orders[marketDetails.baseToken][marketDetails.quoteToken][side][nextOrderId].price >= price) {
+					previousOrderId = nextOrderId;
+					nextOrderId = orders[marketDetails.baseToken][marketDetails.quoteToken][side][nextOrderId].nextOrderId;
+				}
+				orders[marketDetails.baseToken][marketDetails.quoteToken][side][previousOrderId].nextOrderId = orderId;
+			}
 			orders[marketDetails.baseToken][marketDetails.quoteToken][side][orderId] = Order(msg.sender, baseQuantity, price, nextOrderId);
 		}
 

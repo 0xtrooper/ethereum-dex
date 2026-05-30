@@ -54,7 +54,7 @@ contract MatchingOrderBookTest is Test {
 		orderBook.createMarket(address(EURT), address(USDC), 0, 10e6);
 	}
 	
-	function testPlaceOrder() public {
+	function testPlaceOneOrderSell() public {
 		orderBook.createMarket(address(EURT), address(USDC), 0, 10e6);
 		vm.prank(user1);
 		EURT.approve(address(orderBook), 100e18);
@@ -69,37 +69,81 @@ contract MatchingOrderBookTest is Test {
 		MatchingOrderBook.MarketDetails memory marketDetails = orderBook.getMarketDetails(marketId);
 		uint bankEurtBalance = EURT.balanceOf(marketDetails.bankAddress);
 		assertEq(bankEurtBalance, 115e6);
+		MatchingOrderBook.Order[] memory orders = orderBook.getorderbook(address(EURT), address(USDC), MatchingOrderBook.Side.SELL, 1);
+		assertEq(orders[0].user, user1);
+		assertEq(orders[0].baseQuantity, 115e6);
+		assertEq(orders[0].price, 1e6);
+		assertEq(orders[0].nextOrderId, 0);
 	}
 
-	function testPlaceMultipleOrders() public {
+	function testPlaceOneOrderBuy() public {
 		orderBook.createMarket(address(EURT), address(USDC), 0, 10e6);
 		vm.prank(user1);
-		EURT.approve(address(orderBook), 100e18);
 		USDC.approve(address(orderBook), 100e18);
-		vm.prank(user2);
-		EURT.approve(address(orderBook), 100e18);
-		USDC.approve(address(orderBook), 100e18);
-		vm.prank(user3);
-		EURT.approve(address(orderBook), 100e18);
-		USDC.approve(address(orderBook), 100e18);
-		EURT.mint(user1, 1000*1e18);
 		USDC.mint(user1, 1000*1e18);
-		EURT.mint(user2, 1000*1e18);
-		USDC.mint(user2, 1000*1e18);
-		EURT.mint(user3, 1000*1e18);
-		USDC.mint(user3, 1000*1e18);
 		bytes32 marketId = orderBook.getMarketId(address(EURT), address(USDC), 0, 10e6);
 		vm.prank(user1);
-		orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 115e6, 1e6);
-		vm.prank(user2);
-		orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 1000000);
-		vm.prank(user3);
-		orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 1100000);
-		vm.prank(user1);
-		orderBook.placeOrder(marketId, MatchingOrderBook.Side.BUY, 2000e6, 1200000);
-		vm.prank(user2);
-		orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 1000000);
+		uint orderId = orderBook.placeOrder(marketId, MatchingOrderBook.Side.BUY, 115e6, 1e6);
+	        MatchingOrderBook.Order memory order = orderBook.getorder(address(EURT), address(USDC), MatchingOrderBook.Side.BUY, orderId);
+		assertEq(order.user, user1, "User should match");
+		assertEq(order.baseQuantity, 115e6, "Base Quantity should match");
+		assertEq(order.price, 1e6, "Price should match");
+		MatchingOrderBook.MarketDetails memory marketDetails = orderBook.getMarketDetails(marketId);
+		uint bankUsdcBalance = USDC.balanceOf(marketDetails.bankAddress);
+		assertEq(bankUsdcBalance, 115e6);
+		MatchingOrderBook.Order[] memory orders = orderBook.getorderbook(address(EURT), address(USDC), MatchingOrderBook.Side.BUY, 1);
+		assertEq(orders[0].user, user1);
+		assertEq(orders[0].baseQuantity, 115e6);
+		assertEq(orders[0].price, 1e6);
+		assertEq(orders[0].nextOrderId, 0);
 	}
+
+	function testPlaceTwoOrdersToCheckGas() public {
+		orderBook.createMarket(address(EURT), address(USDC), 0, 10e6);
+		vm.prank(user1);
+		USDC.approve(address(orderBook), 100e18);
+		USDC.mint(user1, 1000*1e18);
+		bytes32 marketId = orderBook.getMarketId(address(EURT), address(USDC), 0, 10e6);
+		vm.prank(user1);
+		orderBook.placeOrder(marketId, MatchingOrderBook.Side.BUY, 115e6, 1e6);
+		vm.prank(user1);
+		orderBook.placeOrder(marketId, MatchingOrderBook.Side.BUY, 115e6, 11e5);
+	}
+
+	function testPlaceTwentyBuyOrders() public {
+		orderBook.createMarket(address(EURT), address(USDC), 0, 10e6);
+		vm.prank(user1);
+		USDC.approve(address(orderBook), 100e18);
+		USDC.mint(user1, 1000*1e18);
+		bytes32 marketId = orderBook.getMarketId(address(EURT), address(USDC), 0, 10e6);
+		for (uint i=1; i < 21; i++) {
+			vm.prank(user1);
+			orderBook.placeOrder(marketId, MatchingOrderBook.Side.BUY, 115e6, i * 1e6);
+		}
+	}
+
+	//function testMatchingOrdersFullFill() public {
+	//	orderBook.createMarket(address(EURT), address(USDC), 0, 10e6);
+	//	vm.prank(user1);
+	//	EURT.approve(address(orderBook), 100e18);
+	//	vm.prank(user2);
+	//	USDC.approve(address(orderBook), 100e18);
+	//	EURT.mint(user1, 10000*1e6);
+	//	USDC.mint(user2, 10000*1e6);
+	//	bytes32 marketId = orderBook.getMarketId(address(EURT), address(USDC), 0, 10e6);
+	//	vm.prank(user1);
+	//	orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 1e6);
+	//	vm.prank(user2);
+	//	orderBook.placeOrder(marketId, MatchingOrderBook.Side.BUY, 1000e6, 1e6);
+	//	uint user1eurt = EURT.balanceOf(user1);
+	//	uint user1usdc = USDC.balanceOf(user1);
+	//	uint user2eurt = EURT.balanceOf(user1);
+	//	uint user2usdc = USDC.balanceOf(user1);
+	//	assertEq(user1eurt, 9000e6);
+	//	assertEq(user1usdc, 11000e6);
+	//	assertEq(user2eurt, 11000e6);
+	//	assertEq(user2usdc, 9000e6);
+	//}
 
 	//function testPlaceETHOrder() public {
 	//	orderBook.createMarket(address(0), address(USDC));

@@ -12,6 +12,7 @@ contract MatchingOrderBookTest is Test {
 	address owner = address(0x1);
 	address user1 = address(0x2);
 	address user2 = address(0x3);
+	address user3 = address(0x4);
 
 	function setUp() public {
 		USDC = new MockERC20("USDC", "USDC", 6);
@@ -68,6 +69,36 @@ contract MatchingOrderBookTest is Test {
 		MatchingOrderBook.MarketDetails memory marketDetails = orderBook.getMarketDetails(marketId);
 		uint bankEurtBalance = EURT.balanceOf(marketDetails.bankAddress);
 		assertEq(bankEurtBalance, 115e6);
+	}
+
+	function testPlaceMultipleOrders() public {
+		orderBook.createMarket(address(EURT), address(USDC), 0, 10e6);
+		vm.prank(user1);
+		EURT.approve(address(orderBook), 100e18);
+		USDC.approve(address(orderBook), 100e18);
+		vm.prank(user2);
+		EURT.approve(address(orderBook), 100e18);
+		USDC.approve(address(orderBook), 100e18);
+		vm.prank(user3);
+		EURT.approve(address(orderBook), 100e18);
+		USDC.approve(address(orderBook), 100e18);
+		EURT.mint(user1, 1000*1e18);
+		USDC.mint(user1, 1000*1e18);
+		EURT.mint(user2, 1000*1e18);
+		USDC.mint(user2, 1000*1e18);
+		EURT.mint(user3, 1000*1e18);
+		USDC.mint(user3, 1000*1e18);
+		bytes32 marketId = orderBook.getMarketId(address(EURT), address(USDC), 0, 10e6);
+		vm.prank(user1);
+		orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 115e6, 1e6);
+		vm.prank(user2);
+		orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 1000000);
+		vm.prank(user3);
+		orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 1100000);
+		vm.prank(user1);
+		orderBook.placeOrder(marketId, MatchingOrderBook.Side.BUY, 2000e6, 1200000);
+		vm.prank(user2);
+		orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 1000000);
 	}
 
 	//function testPlaceETHOrder() public {

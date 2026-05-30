@@ -48,10 +48,10 @@ contract MatchingOrderBook {
 		uint quoteMinSize;
 		address payable bankAddress;
 	}
-	mapping(bytes32 => MarketDetails) MARKET_DETAILS; // market_id -> MarketDetails
+	mapping(bytes32 => MarketDetails) public MARKET_DETAILS; // market_id -> MarketDetails
 	mapping(address => mapping(address => mapping(Side => uint))) orderbooks; // baseToken -> quoteToken -> Side -> firstOrderId
 	mapping(address => mapping(address => mapping(Side => mapping(uint => Order)))) orders; // baseToken -> quoteToken -> Side -> orderId -> Order
-	uint public orderCounter = 0;
+	uint public orderCounter = 1;
 
 	event OrderPlaced(uint indexed orderId, address indexed user, address baseToken, address quoteToken, bytes32 indexed markethash, Side side, uint baseQuantity, uint price);
 	event OrderCanceled(uint indexed orderId);
@@ -104,7 +104,7 @@ contract MatchingOrderBook {
 			Order memory fillOrder = orders[marketDetails.baseToken][marketDetails.quoteToken][Side.BUY][fillOrderId];
 
 			// Filling Opposite Book
-			while (price <= fillOrder.price) {
+			while (price <= fillOrder.price && fillOrder.user != address(0)) {
 				if (baseQuantity == fillOrder.baseQuantity) {
 					delete orders[marketDetails.baseToken][marketDetails.quoteToken][Side.BUY][fillOrderId];
 					orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.BUY] = fillOrder.nextOrderId;
@@ -139,7 +139,7 @@ contract MatchingOrderBook {
 			require(!isFillOrKill, "order size is too small to post. defaulted to fill or kill and failed.");
 			uint nextOrderId = orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL];
 			uint previousOrderId = 0;
-			while (orders[marketDetails.baseToken][marketDetails.quoteToken][side][nextOrderId].price <= price) {
+			while (nextOrderId != 0 && orders[marketDetails.baseToken][marketDetails.quoteToken][side][nextOrderId].price <= price) {
 				previousOrderId = nextOrderId;
 				nextOrderId = orders[marketDetails.baseToken][marketDetails.quoteToken][side][nextOrderId].nextOrderId;
 			}
@@ -153,7 +153,7 @@ contract MatchingOrderBook {
 			Order memory fillOrder = orders[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL][fillOrderId];
 
 			// Filling Opposite Book
-			while (price >= fillOrder.price) {
+			while (price >= fillOrder.price && fillOrder.user != address(0)) {
 				if (baseQuantity == fillOrder.baseQuantity) {
 					delete orders[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL][fillOrderId];
 					orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL] = fillOrder.nextOrderId;
@@ -188,7 +188,7 @@ contract MatchingOrderBook {
 			require(!isFillOrKill, "order size is too small to post. defaulted to fill or kill and failed.");
 			uint nextOrderId = orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.BUY];
 			uint previousOrderId = 0;
-			while (orders[marketDetails.baseToken][marketDetails.quoteToken][side][nextOrderId].price >= price) {
+			while (nextOrderId != 0 && orders[marketDetails.baseToken][marketDetails.quoteToken][side][nextOrderId].price >= price) {
 				previousOrderId = nextOrderId;
 				nextOrderId = orders[marketDetails.baseToken][marketDetails.quoteToken][side][nextOrderId].nextOrderId;
 			}
@@ -223,6 +223,10 @@ contract MatchingOrderBook {
 
 	function getMarketId(address baseToken, address quoteToken, uint baseMinimum, uint quoteMinimum) public pure returns (bytes32) {
 		return sha256(abi.encodePacked(baseToken, quoteToken, baseMinimum, quoteMinimum));
+	}
+
+	function getMarketDetails(bytes32 marketId) public view returns (MarketDetails memory) {
+		return MARKET_DETAILS[marketId];
 	}
 
 	function getorder(address baseToken, address quoteToken, Side side, uint orderId) external view returns (Order memory) {

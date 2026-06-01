@@ -44,8 +44,8 @@ contract MatchingOrderBook {
 	struct MarketDetails {
 		address baseToken;
 		address quoteToken;
-		uint baseMinSize;
-		uint quoteMinSize;
+		uint baseMinPostSize;
+		uint quoteMinPostSize;
 		address payable bankAddress;
 	}
 	mapping(bytes32 => MarketDetails) public MARKET_DETAILS; // market_id -> MarketDetails
@@ -74,8 +74,6 @@ contract MatchingOrderBook {
 		uint quoteQuantity = baseQuantity * price / 10**quoteTokenDecimals;
 		require(quoteQuantity > 0, "calculated quote quantity is zero");
 
-		bool isFillOrKill = baseQuantity < marketDetails.baseMinSize || quoteQuantity < marketDetails.quoteMinSize;
-
 		require(msg.value == 0, "Cannot send ETH. Use WETH instead.");
 		if (side == Side.SELL) {
 			IERC20 baseTokenIERC20 = IERC20(marketDetails.baseToken);
@@ -98,6 +96,8 @@ contract MatchingOrderBook {
 			}
 		}
 
+		bool filled = false;
+
 		// Order Matching
 		if (side == Side.SELL) {
 			uint fillOrderId = orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.BUY];
@@ -105,6 +105,7 @@ contract MatchingOrderBook {
 
 			// Filling Opposite Book
 			while (price <= fillOrder.price && fillOrder.user != address(0)) {
+				filled = true;
 				if (baseQuantity == fillOrder.baseQuantity) {
 					delete orders[marketDetails.baseToken][marketDetails.quoteToken][Side.BUY][fillOrderId];
 					orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.BUY] = fillOrder.nextOrderId;
@@ -135,8 +136,17 @@ contract MatchingOrderBook {
 				}
 			}
 
+			uint remainingQuoteQuantity = baseQuantity * price / 10**quoteTokenDecimals;
+			bool canPost = baseQuantity > marketDetails.baseMinPostSize && remainingQuoteQuantity >  marketDetails.baseMinPostSize;
+			require(filled || canPost, "fill or kill. didn't fill");
+
+			// refund orders which filled but can't post
+			if (filled && !canPost) {
+				Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.baseToken, baseQuantity);
+				return 0;
+			}
+
 			// Place leftover orders in book
-			require(!isFillOrKill, "order size is too small to post. defaulted to fill or kill and failed.");
 			unchecked {
 				orderId = ++orderCounter;
 			}
@@ -159,6 +169,7 @@ contract MatchingOrderBook {
 
 			// Filling Opposite Book
 			while (price >= fillOrder.price && fillOrder.user != address(0)) {
+				filled = true;
 				if (baseQuantity == fillOrder.baseQuantity) {
 					delete orders[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL][fillOrderId];
 					orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL] = fillOrder.nextOrderId;
@@ -189,8 +200,17 @@ contract MatchingOrderBook {
 				}
 			}
 
+			uint remainingQuoteQuantity = baseQuantity * price / 10**quoteTokenDecimals;
+			bool canPost = baseQuantity > marketDetails.baseMinPostSize && remainingQuoteQuantity >  marketDetails.baseMinPostSize;
+			require(filled || canPost, "fill or kill. didn't fill");
+
+			// refund orders which filled but can't post
+			if (filled && !canPost) {
+				Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, quoteQuantity);
+				return 0;
+			}
+
 			// Place leftover orders in book
-			require(!isFillOrKill, "order size is too small to post. defaulted to fill or kill and failed.");
 			unchecked {
 				orderId = ++orderCounter;
 			}
@@ -239,11 +259,15 @@ contract MatchingOrderBook {
 		return MARKET_DETAILS[marketId];
 	}
 
-	function getorder(address baseToken, address quoteToken, Side side, uint orderId) external view returns (Order memory) {
+	function getOrder(address baseToken, address quoteToken, Side side, uint orderId) external view returns (Order memory) {
 		return orders[baseToken][quoteToken][side][orderId];
 	}
 
-	function getorderbook(address baseToken, address quoteToken, Side side, uint depth) external view returns (Order[] memory) {
+	function getFirstOrderId(address baseToken, address quoteToken, Side side) external view returns (uint) {
+		return orderbooks[baseToken][quoteToken][side];
+	}
+
+	function getOrderBook(address baseToken, address quoteToken, Side side, uint depth) external view returns (Order[] memory) {
 		Order[] memory returnOrders = new Order[](depth); 
 		uint orderId = orderbooks[baseToken][quoteToken][side];
 		for (uint i=0; i < depth; i++) {

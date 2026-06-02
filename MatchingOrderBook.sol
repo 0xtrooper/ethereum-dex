@@ -252,7 +252,7 @@ contract MatchingOrderBook {
 	}
 
 	function getMarketId(address baseToken, address quoteToken, uint baseMinimum, uint quoteMinimum) public pure returns (bytes32) {
-		return sha256(abi.encodePacked(baseToken, quoteToken, baseMinimum, quoteMinimum));
+		return keccak256(abi.encodePacked(baseToken, quoteToken, baseMinimum, quoteMinimum));
 	}
 
 	function getMarketDetails(bytes32 marketId) public view returns (MarketDetails memory) {

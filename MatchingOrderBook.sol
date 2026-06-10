@@ -100,135 +100,71 @@ contract MatchingOrderBook {
 
 		// Order Matching
 		Side makerSide = side == Side.SELL ? Side.BUY : Side.SELL;
-		if (side == Side.SELL) {
-			uint fillOrderId = orderbooks[marketDetails.baseToken][marketDetails.quoteToken][makerSide];
-			Order memory fillOrder = orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId];
 
-			// Filling Opposite Book
-			while (price <= fillOrder.price && fillOrder.user != address(0)) {
-				filled = true;
-				if (baseQuantity == fillOrder.baseQuantity) {
-					delete orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId];
-					orderbooks[marketDetails.baseToken][marketDetails.quoteToken][makerSide] = fillOrder.nextOrderId;
-					emit OrderFill(fillOrderId, fillOrder.baseQuantity);
-					uint fillOrderQuoteQuantity = fillOrder.baseQuantity * fillOrder.price / 10**quoteTokenDecimals;
-					Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, fillOrderQuoteQuantity);
-					Bank(marketDetails.bankAddress).withdrawTo(fillOrder.user, marketDetails.baseToken, baseQuantity);
-					break;
-				}
-				else if (baseQuantity > fillOrder.baseQuantity) {
-					delete orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId];
-					emit OrderFill(fillOrderId, fillOrder.baseQuantity);
-					uint fillOrderQuoteQuantity = fillOrder.baseQuantity * fillOrder.price / 10**quoteTokenDecimals;
-					Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, fillOrderQuoteQuantity);
-					Bank(marketDetails.bankAddress).withdrawTo(fillOrder.user, marketDetails.baseToken, fillOrder.baseQuantity);
-					baseQuantity -= fillOrder.baseQuantity;
-					fillOrder = orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrder.nextOrderId];
-				}
-				else { // baseQuantity < fillOrder.baseQuantity
-					orderbooks[marketDetails.baseToken][marketDetails.quoteToken][makerSide] = fillOrderId;
-					orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId].baseQuantity -= baseQuantity;
-					emit OrderFill(fillOrderId, baseQuantity);
-					uint fillQuoteQuantity = baseQuantity * fillOrder.price / 10**quoteTokenDecimals;
-					Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, fillQuoteQuantity);
-					Bank(marketDetails.bankAddress).withdrawTo(fillOrder.user, marketDetails.baseToken, baseQuantity);
-					baseQuantity = 0;
-					return 0;
-				}
+		uint fillOrderId = orderbooks[marketDetails.baseToken][marketDetails.quoteToken][makerSide];
+		Order memory fillOrder = orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId];
+
+		// Filling Opposite Book
+		while (fillOrder.user != address(0)) {
+			if (side == Side.SELL) {
+			       	if (price > fillOrder.price) break;
+			}
+			else { // if (side == Side.BUY) 
+				if (price < fillOrder.price) break;
 			}
 
-			uint remainingQuoteQuantity = baseQuantity * price / 10**quoteTokenDecimals;
-			bool canPost = baseQuantity > marketDetails.baseMinPostSize && remainingQuoteQuantity >  marketDetails.baseMinPostSize;
-			require(filled || canPost, "fill or kill. didn't fill");
-
-			// refund orders which filled but can't post
-			if (filled && !canPost) {
-				Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.baseToken, baseQuantity);
+			filled = true;
+			if (baseQuantity > fillOrder.baseQuantity) {
+				delete orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId];
+				emit OrderFill(fillOrderId, fillOrder.baseQuantity);
+				uint fillOrderQuoteQuantity = fillOrder.baseQuantity * fillOrder.price / 10**quoteTokenDecimals;
+				Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, fillOrderQuoteQuantity);
+				Bank(marketDetails.bankAddress).withdrawTo(fillOrder.user, marketDetails.baseToken, fillOrder.baseQuantity);
+				baseQuantity -= fillOrder.baseQuantity;
+				fillOrder = orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrder.nextOrderId];
+			}
+			else { // baseQuantity <= fillOrder.baseQuantity
+				orderbooks[marketDetails.baseToken][marketDetails.quoteToken][makerSide] = fillOrderId;
+				orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId].baseQuantity -= baseQuantity;
+				emit OrderFill(fillOrderId, baseQuantity);
+				uint fillQuoteQuantity = baseQuantity * fillOrder.price / 10**quoteTokenDecimals;
+				Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, fillQuoteQuantity);
+				Bank(marketDetails.bankAddress).withdrawTo(fillOrder.user, marketDetails.baseToken, baseQuantity);
 				return 0;
 			}
-
-			// Place leftover orders in book
-			unchecked {
-				orderId = ++orderCounter;
-			}
-			uint nextOrderId = orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL];
-			if (nextOrderId == 0) {
-				orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL] = orderId;
-			}
-			else {
-				uint previousOrderId = 0;
-				while (nextOrderId != 0 && orders[marketDetails.baseToken][marketDetails.quoteToken][side][nextOrderId].price <= price) {
-					previousOrderId = nextOrderId;
-					nextOrderId = orders[marketDetails.baseToken][marketDetails.quoteToken][side][nextOrderId].nextOrderId;
-				}
-				orders[marketDetails.baseToken][marketDetails.quoteToken][side][previousOrderId].nextOrderId = orderId;
-			}
-			orders[marketDetails.baseToken][marketDetails.quoteToken][side][orderId] = Order(msg.sender, baseQuantity, price, nextOrderId);
-		} else if (side == Side.BUY) {
-			uint fillOrderId = orderbooks[marketDetails.baseToken][marketDetails.quoteToken][makerSide];
-			Order memory fillOrder = orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId];
-
-			// Filling Opposite Book
-			while (price >= fillOrder.price && fillOrder.user != address(0)) {
-				filled = true;
-				if (baseQuantity == fillOrder.baseQuantity) {
-					delete orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId];
-					orderbooks[marketDetails.baseToken][marketDetails.quoteToken][makerSide] = fillOrder.nextOrderId;
-					emit OrderFill(fillOrderId, fillOrder.baseQuantity);
-					uint fillOrderQuoteQuantity = fillOrder.baseQuantity * fillOrder.price / 10**quoteTokenDecimals;
-					Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, fillOrderQuoteQuantity);
-					Bank(marketDetails.bankAddress).withdrawTo(fillOrder.user, marketDetails.baseToken, baseQuantity);
-					break;
-				}
-				else if (baseQuantity > fillOrder.baseQuantity) {
-					delete orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId];
-					emit OrderFill(fillOrderId, fillOrder.baseQuantity);
-					uint fillOrderQuoteQuantity = fillOrder.baseQuantity * fillOrder.price / 10**quoteTokenDecimals;
-					Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, fillOrderQuoteQuantity);
-					Bank(marketDetails.bankAddress).withdrawTo(fillOrder.user, marketDetails.baseToken, fillOrder.baseQuantity);
-					baseQuantity -= fillOrder.baseQuantity;
-					fillOrder = orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrder.nextOrderId];
-				}
-				else { // baseQuantity < fillOrder.baseQuantity
-					orderbooks[marketDetails.baseToken][marketDetails.quoteToken][makerSide] = fillOrderId;
-					orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId].baseQuantity -= baseQuantity;
-					emit OrderFill(fillOrderId, baseQuantity);
-					uint fillQuoteQuantity = baseQuantity * fillOrder.price / 10**quoteTokenDecimals;
-					Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, fillQuoteQuantity);
-					Bank(marketDetails.bankAddress).withdrawTo(fillOrder.user, marketDetails.baseToken, baseQuantity);
-					baseQuantity = 0;
-					return 0;
-				}
-			}
-
-			uint remainingQuoteQuantity = baseQuantity * price / 10**quoteTokenDecimals;
-			bool canPost = baseQuantity > marketDetails.baseMinPostSize && remainingQuoteQuantity >  marketDetails.baseMinPostSize;
-			require(filled || canPost, "fill or kill. didn't fill");
-
-			// refund orders which filled but can't post
-			if (filled && !canPost) {
-				Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, quoteQuantity);
-				return 0;
-			}
-
-			// Place leftover orders in book
-			unchecked {
-				orderId = ++orderCounter;
-			}
-			uint nextOrderId = orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.BUY];
-			if (nextOrderId == 0) {
-				orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.BUY] = orderId;
-			}
-			else {
-				uint previousOrderId = 0;
-				while (nextOrderId != 0 && orders[marketDetails.baseToken][marketDetails.quoteToken][side][nextOrderId].price >= price) {
-					previousOrderId = nextOrderId;
-					nextOrderId = orders[marketDetails.baseToken][marketDetails.quoteToken][side][nextOrderId].nextOrderId;
-				}
-				orders[marketDetails.baseToken][marketDetails.quoteToken][side][previousOrderId].nextOrderId = orderId;
-			}
-			orders[marketDetails.baseToken][marketDetails.quoteToken][side][orderId] = Order(msg.sender, baseQuantity, price, nextOrderId);
 		}
+
+		uint remainingQuoteQuantity = baseQuantity * price / 10**quoteTokenDecimals;
+		bool canPost = baseQuantity > marketDetails.baseMinPostSize && remainingQuoteQuantity >  marketDetails.quoteMinPostSize;
+		require(filled || canPost, "fill or kill. didn't fill");
+
+		// refund orders which filled but can't post
+		if (filled && !canPost) {
+			if (side == Side.SELL) {
+				Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.baseToken, baseQuantity);
+			} else {
+				Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, remainingQuoteQuantity);
+			}
+			return 0;
+		}
+
+		// Place leftover orders in book
+		unchecked {
+			orderId = ++orderCounter;
+		}
+		uint nextOrderId = orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL];
+		if (nextOrderId == 0) {
+			orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL] = orderId;
+		}
+		else {
+			uint previousOrderId = 0;
+			while (nextOrderId != 0 && orders[marketDetails.baseToken][marketDetails.quoteToken][side][nextOrderId].price <= price) {
+				previousOrderId = nextOrderId;
+				nextOrderId = orders[marketDetails.baseToken][marketDetails.quoteToken][side][nextOrderId].nextOrderId;
+			}
+			orders[marketDetails.baseToken][marketDetails.quoteToken][side][previousOrderId].nextOrderId = orderId;
+		}
+		orders[marketDetails.baseToken][marketDetails.quoteToken][side][orderId] = Order(msg.sender, baseQuantity, price, nextOrderId);
 
 		bytes32 markethash = keccak256(abi.encodePacked(marketDetails.baseToken, marketDetails.quoteToken));
 		emit OrderPlaced(orderId, msg.sender, marketDetails.baseToken, marketDetails.quoteToken, markethash, side, baseQuantity, price);

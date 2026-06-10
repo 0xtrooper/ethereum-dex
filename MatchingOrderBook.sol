@@ -99,16 +99,17 @@ contract MatchingOrderBook {
 		bool filled = false;
 
 		// Order Matching
+		Side makerSide = side == Side.SELL ? Side.BUY : Side.SELL;
 		if (side == Side.SELL) {
-			uint fillOrderId = orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.BUY];
-			Order memory fillOrder = orders[marketDetails.baseToken][marketDetails.quoteToken][Side.BUY][fillOrderId];
+			uint fillOrderId = orderbooks[marketDetails.baseToken][marketDetails.quoteToken][makerSide];
+			Order memory fillOrder = orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId];
 
 			// Filling Opposite Book
 			while (price <= fillOrder.price && fillOrder.user != address(0)) {
 				filled = true;
 				if (baseQuantity == fillOrder.baseQuantity) {
-					delete orders[marketDetails.baseToken][marketDetails.quoteToken][Side.BUY][fillOrderId];
-					orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.BUY] = fillOrder.nextOrderId;
+					delete orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId];
+					orderbooks[marketDetails.baseToken][marketDetails.quoteToken][makerSide] = fillOrder.nextOrderId;
 					emit OrderFill(fillOrderId, fillOrder.baseQuantity);
 					uint fillOrderQuoteQuantity = fillOrder.baseQuantity * fillOrder.price / 10**quoteTokenDecimals;
 					Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, fillOrderQuoteQuantity);
@@ -116,17 +117,17 @@ contract MatchingOrderBook {
 					break;
 				}
 				else if (baseQuantity > fillOrder.baseQuantity) {
-					delete orders[marketDetails.baseToken][marketDetails.quoteToken][Side.BUY][fillOrderId];
+					delete orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId];
 					emit OrderFill(fillOrderId, fillOrder.baseQuantity);
 					uint fillOrderQuoteQuantity = fillOrder.baseQuantity * fillOrder.price / 10**quoteTokenDecimals;
 					Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, fillOrderQuoteQuantity);
 					Bank(marketDetails.bankAddress).withdrawTo(fillOrder.user, marketDetails.baseToken, fillOrder.baseQuantity);
 					baseQuantity -= fillOrder.baseQuantity;
-					fillOrder = orders[marketDetails.baseToken][marketDetails.quoteToken][Side.BUY][fillOrder.nextOrderId];
+					fillOrder = orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrder.nextOrderId];
 				}
 				else { // baseQuantity < fillOrder.baseQuantity
-					orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.BUY] = fillOrderId;
-					orders[marketDetails.baseToken][marketDetails.quoteToken][Side.BUY][fillOrderId].baseQuantity -= baseQuantity;
+					orderbooks[marketDetails.baseToken][marketDetails.quoteToken][makerSide] = fillOrderId;
+					orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId].baseQuantity -= baseQuantity;
 					emit OrderFill(fillOrderId, baseQuantity);
 					uint fillQuoteQuantity = baseQuantity * fillOrder.price / 10**quoteTokenDecimals;
 					Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, fillQuoteQuantity);
@@ -164,15 +165,15 @@ contract MatchingOrderBook {
 			}
 			orders[marketDetails.baseToken][marketDetails.quoteToken][side][orderId] = Order(msg.sender, baseQuantity, price, nextOrderId);
 		} else if (side == Side.BUY) {
-			uint fillOrderId = orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL];
-			Order memory fillOrder = orders[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL][fillOrderId];
+			uint fillOrderId = orderbooks[marketDetails.baseToken][marketDetails.quoteToken][makerSide];
+			Order memory fillOrder = orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId];
 
 			// Filling Opposite Book
 			while (price >= fillOrder.price && fillOrder.user != address(0)) {
 				filled = true;
 				if (baseQuantity == fillOrder.baseQuantity) {
-					delete orders[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL][fillOrderId];
-					orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL] = fillOrder.nextOrderId;
+					delete orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId];
+					orderbooks[marketDetails.baseToken][marketDetails.quoteToken][makerSide] = fillOrder.nextOrderId;
 					emit OrderFill(fillOrderId, fillOrder.baseQuantity);
 					uint fillOrderQuoteQuantity = fillOrder.baseQuantity * fillOrder.price / 10**quoteTokenDecimals;
 					Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, fillOrderQuoteQuantity);
@@ -180,17 +181,17 @@ contract MatchingOrderBook {
 					break;
 				}
 				else if (baseQuantity > fillOrder.baseQuantity) {
-					delete orders[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL][fillOrderId];
+					delete orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId];
 					emit OrderFill(fillOrderId, fillOrder.baseQuantity);
 					uint fillOrderQuoteQuantity = fillOrder.baseQuantity * fillOrder.price / 10**quoteTokenDecimals;
 					Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, fillOrderQuoteQuantity);
 					Bank(marketDetails.bankAddress).withdrawTo(fillOrder.user, marketDetails.baseToken, fillOrder.baseQuantity);
 					baseQuantity -= fillOrder.baseQuantity;
-					fillOrder = orders[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL][fillOrder.nextOrderId];
+					fillOrder = orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrder.nextOrderId];
 				}
 				else { // baseQuantity < fillOrder.baseQuantity
-					orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL] = fillOrderId;
-					orders[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL][fillOrderId].baseQuantity -= baseQuantity;
+					orderbooks[marketDetails.baseToken][marketDetails.quoteToken][makerSide] = fillOrderId;
+					orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId].baseQuantity -= baseQuantity;
 					emit OrderFill(fillOrderId, baseQuantity);
 					uint fillQuoteQuantity = baseQuantity * fillOrder.price / 10**quoteTokenDecimals;
 					Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, fillQuoteQuantity);

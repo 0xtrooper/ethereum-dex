@@ -20,8 +20,6 @@ contract Bank {
 		owner = _owner;
 	}
 
-	receive() external payable {}
-
 	function withdrawTo(address user, address token, uint amount) external {
 		require(msg.sender == owner, "only owner can withdraw funds");
 		require(amount > 0, "amount is zero");

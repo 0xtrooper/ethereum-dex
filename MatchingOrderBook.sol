@@ -118,9 +118,14 @@ contract MatchingOrderBook {
 				delete orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId];
 				emit OrderFill(fillOrderId, fillOrder.baseQuantity);
 				uint fillOrderQuoteQuantity = fillOrder.baseQuantity * fillOrder.price / 10**quoteTokenDecimals;
-				Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, fillOrderQuoteQuantity);
-				Bank(marketDetails.bankAddress).withdrawTo(fillOrder.user, marketDetails.baseToken, fillOrder.baseQuantity);
 				baseQuantity -= fillOrder.baseQuantity;
+				if (side == Side.SELL) {
+					Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, fillOrderQuoteQuantity);
+					Bank(marketDetails.bankAddress).withdrawTo(fillOrder.user, marketDetails.baseToken, fillOrder.baseQuantity);
+				} else {
+					Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.baseToken, fillOrder.baseQuantity);
+					Bank(marketDetails.bankAddress).withdrawTo(fillOrder.user, marketDetails.quoteToken, fillOrderQuoteQuantity);
+				}
 				fillOrder = orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrder.nextOrderId];
 			}
 			else { // baseQuantity <= fillOrder.baseQuantity
@@ -128,8 +133,13 @@ contract MatchingOrderBook {
 				orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId].baseQuantity -= baseQuantity;
 				emit OrderFill(fillOrderId, baseQuantity);
 				uint fillQuoteQuantity = baseQuantity * fillOrder.price / 10**quoteTokenDecimals;
-				Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, fillQuoteQuantity);
-				Bank(marketDetails.bankAddress).withdrawTo(fillOrder.user, marketDetails.baseToken, baseQuantity);
+				if (side == Side.SELL) {
+					Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, fillQuoteQuantity);
+					Bank(marketDetails.bankAddress).withdrawTo(fillOrder.user, marketDetails.baseToken, baseQuantity);
+				} else {
+					Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.baseToken, baseQuantity);
+					Bank(marketDetails.bankAddress).withdrawTo(fillOrder.user, marketDetails.quoteToken, fillQuoteQuantity);
+				}
 				return 0;
 			}
 		}
@@ -152,9 +162,9 @@ contract MatchingOrderBook {
 		unchecked {
 			orderId = ++orderCounter;
 		}
-		uint nextOrderId = orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL];
+		uint nextOrderId = orderbooks[marketDetails.baseToken][marketDetails.quoteToken][side];
 		if (nextOrderId == 0) {
-			orderbooks[marketDetails.baseToken][marketDetails.quoteToken][Side.SELL] = orderId;
+			orderbooks[marketDetails.baseToken][marketDetails.quoteToken][side] = orderId;
 		}
 		else {
 			uint previousOrderId = 0;

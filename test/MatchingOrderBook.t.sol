@@ -408,42 +408,36 @@ contract MatchingOrderBookTest is Test {
 		assertEq(order.price, 0, "Price should be deleted");
 	}
 
-	//function testDoubleCancelOrderFail() public {
-	//	orderBook.createMarket(address(USDC), address(EURT));
-	//	vm.prank(user1);
-	//	USDC.approve(address(orderBook), 300e18);
-	//	USDC.mint(user1, 1000*1e18);
-	//	vm.prank(user1);
-	//	uint orderId = orderBook.placeOrder(address(USDC), address(EURT), MatchingOrderBook.Side.SELL, 100 * 1e18, 1e6);
-	//        MatchingOrderBook.Order memory order = orderBook.getOrder(marketId, orderId);
-	//	assertEq(order.user, user1, "User should match");
-	//	assertEq(order.baseQuantity, 100 * 1e18, "Base Quantity should match");
-	//	assertEq(order.price, 1e6, "Price should match");
-	//	vm.prank(user1);
-	//	orderBook.cancelOrder(address(USDC), address(EURT), orderId);
-	//        order = orderBook.getOrder(marketId, orderId);
-	//	assertEq(order.user, address(0), "User should be deleted");
-	//	assertEq(order.baseQuantity, 0, "Base Quantity should be deleted");
-	//	assertEq(order.price, 0, "Price should be deleted");
-	//	vm.expectRevert("users can only cancel their own order / order may not exist");
-	//	orderBook.cancelOrder(address(USDC), address(EURT), orderId);
-	//}
-	//
-	//function testCancelOrderWrongUserFail() public {
-	//	orderBook.createMarket(address(USDC), address(EURT));
-	//	vm.prank(user1);
-	//	USDC.approve(address(orderBook), 300e18);
-	//	USDC.mint(user1, 1000*1e18);
-	//	vm.prank(user1);
-	//	uint orderId = orderBook.placeOrder(address(USDC), address(EURT), MatchingOrderBook.Side.SELL, 100 * 1e18, 1e6);
-	//        MatchingOrderBook.Order memory order = orderBook.getOrder(marketId, orderId);
-	//	assertEq(order.user, user1, "User should match");
-	//	assertEq(order.baseQuantity, 100 * 1e18, "Base Quantity should match");
-	//	assertEq(order.price, 1e6, "Price should match");
-	//	vm.prank(user2);
-	//	vm.expectRevert("users can only cancel their own order / order may not exist");
-	//	orderBook.cancelOrder(address(USDC), address(EURT), orderId);
-	//}
+	function testDoubleCancelOrderFail() public {
+		orderBook.createMarket(address(EURT), address(USDC), 0, 10e6);
+		bytes32 marketId = orderBook.getMarketId(address(EURT), address(USDC), 0, 10e6);
+		vm.prank(user1);
+		EURT.approve(address(orderBook), 300e18);
+		EURT.mint(user1, 1000e6);
+		vm.prank(user1);
+		uint128 orderId = orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 1e6);
+	        MatchingOrderBook.Order memory order = orderBook.getOrder(marketId, MatchingOrderBook.Side.SELL, orderId);
+		vm.prank(user1);
+		orderBook.cancelOrder(marketId, MatchingOrderBook.Side.SELL, orderId);
+	        order = orderBook.getOrder(marketId, MatchingOrderBook.Side.SELL, orderId);
+		vm.prank(user1);
+		vm.expectRevert("users can only cancel their own order / order may not exist");
+		orderBook.cancelOrder(marketId, MatchingOrderBook.Side.SELL, orderId);
+	}
+	
+	function testCancelOrderWrongUserFail() public {
+		orderBook.createMarket(address(EURT), address(USDC), 0, 10e6);
+		bytes32 marketId = orderBook.getMarketId(address(EURT), address(USDC), 0, 10e6);
+		vm.prank(user1);
+		EURT.approve(address(orderBook), 300e18);
+		EURT.mint(user1, 1000e6);
+		vm.prank(user1);
+		uint128 orderId = orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 1e6);
+	        MatchingOrderBook.Order memory order = orderBook.getOrder(marketId, MatchingOrderBook.Side.SELL, orderId);
+		vm.prank(user2);
+		vm.expectRevert("users can only cancel their own order / order may not exist");
+		orderBook.cancelOrder(marketId, MatchingOrderBook.Side.SELL, orderId);
+	}
 
 	//function testPartialFillOrder() public {
 	//	orderBook.createMarket(address(EURT), address(USDC));

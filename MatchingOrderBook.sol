@@ -132,7 +132,8 @@ contract MatchingOrderBook {
 						Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.baseToken, fillOrder.baseQuantity);
 						Bank(marketDetails.bankAddress).withdrawTo(fillOrder.user, marketDetails.quoteToken, fillOrderQuoteQuantity);
 					}
-					fillOrder = orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrder.nextOrderId];
+					fillOrderId = fillOrder.nextOrderId;
+					fillOrder = orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId];
 				}
 				else { // baseQuantity <= fillOrder.baseQuantity
 					orderbooks[marketDetails.baseToken][marketDetails.quoteToken][makerSide] = fillOrderId;
@@ -200,7 +201,6 @@ contract MatchingOrderBook {
 			}
 			orders[marketDetails.baseToken][marketDetails.quoteToken][side][orderId] = Order(msg.sender, baseQuantity, price, nextOrderId);
 
-			// refund leftover funds if necessary
 			// refund leftover funds if necessary
 			if (side == Side.BUY) {
 				uint remainingQuoteQuantity = placeOrderVars.quoteQuantity - placeOrderVars.usedQuoteQuantity;

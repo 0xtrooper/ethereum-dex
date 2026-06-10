@@ -210,10 +210,8 @@ contract MatchingOrderBook {
 			}
 		}
 
-		// TODO: Uncommenting this leads to a StackTooDeepError from too many local variables
-		// Would like to figure out a fix and emit this event if possible
-		//bytes32 markethash = keccak256(abi.encodePacked(marketDetails.baseToken, marketDetails.quoteToken));
-		//emit OrderPlaced(orderId, msg.sender, marketDetails.baseToken, marketDetails.quoteToken, markethash, side, baseQuantity, price);
+		bytes32 markethash = keccak256(abi.encodePacked(marketDetails.baseToken, marketDetails.quoteToken));
+		emit OrderPlaced(orderId, msg.sender, marketDetails.baseToken, marketDetails.quoteToken, markethash, side, baseQuantity, price);
 	}
 
 	function cancelOrder(bytes32 marketId, Side side, uint orderId) external {

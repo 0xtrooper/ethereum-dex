@@ -48,6 +48,11 @@ contract MatchingOrderBook {
 		uint quoteMinPostSize;
 		address payable bankAddress;
 	}
+	struct PlaceOrderVars {
+		bool fillOccurred;
+		uint quoteQuantity;
+		uint usedQuoteQuantity;
+	}
 	mapping(bytes32 => MarketDetails) public MARKET_DETAILS; // market_id -> MarketDetails
 	mapping(address => mapping(address => mapping(Side => uint))) orderbooks; // baseToken -> quoteToken -> Side -> firstOrderId
 	mapping(address => mapping(address => mapping(Side => mapping(uint => Order)))) orders; // baseToken -> quoteToken -> Side -> orderId -> Order
@@ -66,13 +71,14 @@ contract MatchingOrderBook {
 
 	function placeOrder(bytes32 marketId, Side side, uint baseQuantity, uint price) external payable returns (uint orderId) {
 		MarketDetails memory marketDetails = MARKET_DETAILS[marketId];
+		PlaceOrderVars memory placeOrderVars = PlaceOrderVars(false, 0, 0);
 		require(marketDetails.bankAddress != address(0), "createMarket before placing an order on it");
 		require(baseQuantity > 0 && price > 0, "zero quantity/price orders not permitted");
 
 		(bool decimalCallSuccess, uint8 quoteTokenDecimals) = IERC20(marketDetails.quoteToken).tryGetDecimals();
 		require(decimalCallSuccess, "failed to get decimals for token");
-		uint quoteQuantity = baseQuantity * price / 10**quoteTokenDecimals;
-		require(quoteQuantity > 0, "calculated quote quantity is zero");
+		placeOrderVars.quoteQuantity = baseQuantity * price / 10**quoteTokenDecimals;
+		require(placeOrderVars.quoteQuantity > 0, "calculated quote quantity is zero");
 
 		require(msg.value == 0, "Cannot send ETH. Use WETH instead.");
 		if (side == Side.SELL) {
@@ -87,18 +93,15 @@ contract MatchingOrderBook {
 		} else if (side == Side.BUY) {
 			IERC20 quoteTokenIERC20 = IERC20(marketDetails.quoteToken);
 			uint beforeBalance = quoteTokenIERC20.balanceOf(marketDetails.bankAddress);
-			quoteTokenIERC20.safeTransferFrom(msg.sender, marketDetails.bankAddress, quoteQuantity);
+			quoteTokenIERC20.safeTransferFrom(msg.sender, marketDetails.bankAddress, placeOrderVars.quoteQuantity);
 			uint afterBalance = quoteTokenIERC20.balanceOf(marketDetails.bankAddress);
 			uint transferredQuoteQuantity = afterBalance - beforeBalance;
-			if (transferredQuoteQuantity != quoteQuantity) {
-				quoteQuantity = transferredQuoteQuantity;
+			if (transferredQuoteQuantity != placeOrderVars.quoteQuantity) {
+				placeOrderVars.quoteQuantity = transferredQuoteQuantity;
 				price = baseQuantity * 10**quoteTokenDecimals / transferredQuoteQuantity;
 			}
 		}
 
-
-		// Variables for Order Matching
-		bool filled = false;
 
 		// Block scope this to avoid too many local variables
 		{
@@ -115,12 +118,13 @@ contract MatchingOrderBook {
 					if (price < fillOrder.price) break;
 				}
 
-				filled = true;
+				placeOrderVars.fillOccurred = true;
 				if (baseQuantity > fillOrder.baseQuantity) {
 					delete orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId];
 					emit OrderFill(fillOrderId, fillOrder.baseQuantity);
 					uint fillOrderQuoteQuantity = fillOrder.baseQuantity * fillOrder.price / 10**quoteTokenDecimals;
 					baseQuantity -= fillOrder.baseQuantity;
+					placeOrderVars.usedQuoteQuantity += fillOrderQuoteQuantity;
 					if (side == Side.SELL) {
 						Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, fillOrderQuoteQuantity);
 						Bank(marketDetails.bankAddress).withdrawTo(fillOrder.user, marketDetails.baseToken, fillOrder.baseQuantity);
@@ -135,6 +139,7 @@ contract MatchingOrderBook {
 					orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId].baseQuantity -= baseQuantity;
 					emit OrderFill(fillOrderId, baseQuantity);
 					uint fillQuoteQuantity = baseQuantity * fillOrder.price / 10**quoteTokenDecimals;
+					placeOrderVars.usedQuoteQuantity += fillQuoteQuantity;
 					if (side == Side.SELL) {
 						Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, fillQuoteQuantity);
 						Bank(marketDetails.bankAddress).withdrawTo(fillOrder.user, marketDetails.baseToken, baseQuantity);
@@ -142,23 +147,35 @@ contract MatchingOrderBook {
 						Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.baseToken, baseQuantity);
 						Bank(marketDetails.bankAddress).withdrawTo(fillOrder.user, marketDetails.quoteToken, fillQuoteQuantity);
 					}
+
+					// refund leftover funds if necessary
+					if (side == Side.BUY) {
+						uint remainingQuoteQuantity = placeOrderVars.quoteQuantity - placeOrderVars.usedQuoteQuantity;
+						if (remainingQuoteQuantity > 0) {
+							Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, remainingQuoteQuantity);
+						}
+					}
 					return 0;
 				}
 			}
 		}
 
-		uint remainingQuoteQuantity = baseQuantity * price / 10**quoteTokenDecimals;
-		bool canPost = baseQuantity > marketDetails.baseMinPostSize && remainingQuoteQuantity >  marketDetails.quoteMinPostSize;
-		require(filled || canPost, "fill or kill. didn't fill");
+		// Block scope this to avoid too many local variables
+		{
+			uint postQuoteQuantity = baseQuantity * price / 10**quoteTokenDecimals;
+			bool canPost = baseQuantity > marketDetails.baseMinPostSize && postQuoteQuantity >  marketDetails.quoteMinPostSize;
+			require(placeOrderVars.fillOccurred || canPost, "fill or kill. didn't fill");
 
-		// refund orders which filled but can't post
-		if (filled && !canPost) {
-			if (side == Side.SELL) {
-				Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.baseToken, baseQuantity);
-			} else {
-				Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, remainingQuoteQuantity);
+			// refund orders which filled but can't post
+			if (placeOrderVars.fillOccurred && !canPost) {
+				if (side == Side.SELL) {
+					Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.baseToken, baseQuantity);
+				} else {
+					Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, postQuoteQuantity);
+				}
+				return 0;
 			}
-			return 0;
+			placeOrderVars.usedQuoteQuantity += postQuoteQuantity;
 		}
 
 		// Increment order counter
@@ -166,8 +183,8 @@ contract MatchingOrderBook {
 			orderId = ++orderCounter;
 		}
 
-		// Place leftover orders in book
-		// Block scope this too avoid too many local variables
+		// Place leftover orders in book then refund leftover funds
+		// Block scope this to avoid too many local variables
 		{
 			uint nextOrderId = orderbooks[marketDetails.baseToken][marketDetails.quoteToken][side];
 			if (nextOrderId == 0) {
@@ -182,6 +199,15 @@ contract MatchingOrderBook {
 				orders[marketDetails.baseToken][marketDetails.quoteToken][side][previousOrderId].nextOrderId = orderId;
 			}
 			orders[marketDetails.baseToken][marketDetails.quoteToken][side][orderId] = Order(msg.sender, baseQuantity, price, nextOrderId);
+
+			// refund leftover funds if necessary
+			// refund leftover funds if necessary
+			if (side == Side.BUY) {
+				uint remainingQuoteQuantity = placeOrderVars.quoteQuantity - placeOrderVars.usedQuoteQuantity;
+				if (remainingQuoteQuantity > 0) {
+					Bank(marketDetails.bankAddress).withdrawTo(msg.sender, marketDetails.quoteToken, remainingQuoteQuantity);
+				}
+			}
 		}
 
 		// TODO: Uncommenting this leads to a StackTooDeepError from too many local variables

@@ -328,66 +328,67 @@ contract MatchingOrderBookTest is Test {
 		assertEq(orders[0].nextOrderId, 0);
 	}
 
-	//function testFill3Buys() public {
-	//	// zero all balances to start
-	//	uint user1eurt = EURT.balanceOf(user1);
-	//	uint user1usdc = USDC.balanceOf(user1);
-	//	uint user2eurt = EURT.balanceOf(user2);
-	//	uint user2usdc = USDC.balanceOf(user2);
-	//	if (user1eurt != 0) {
-	//		vm.prank(user1);
-	//		EURT.transfer(burnAddress, user1eurt);
-	//	}
-	//	if (user1usdc != 0) {
-	//		vm.prank(user1);
-	//		USDC.transfer(burnAddress, user1usdc);
-	//	}
-	//	if (user2eurt != 0) {
-	//		vm.prank(user1);
-	//		EURT.transfer(burnAddress, user2eurt);
-	//	}
-	//	if (user2usdc != 0) {
-	//		vm.prank(user1);
-	//		USDC.transfer(burnAddress, user2usdc);
-	//	}
+	function testFill3SellsWithPartialFill() public {
+		// zero all balances to start
+		uint user1eurt = EURT.balanceOf(user1);
+		uint user1usdc = USDC.balanceOf(user1);
+		uint user2eurt = EURT.balanceOf(user2);
+		uint user2usdc = USDC.balanceOf(user2);
+		if (user1eurt != 0) {
+			vm.prank(user1);
+			EURT.transfer(burnAddress, user1eurt);
+		}
+		if (user1usdc != 0) {
+			vm.prank(user1);
+			USDC.transfer(burnAddress, user1usdc);
+		}
+		if (user2eurt != 0) {
+			vm.prank(user1);
+			EURT.transfer(burnAddress, user2eurt);
+		}
+		if (user2usdc != 0) {
+			vm.prank(user1);
+			USDC.transfer(burnAddress, user2usdc);
+		}
+		
+		orderBook.createMarket(address(EURT), address(USDC), 0, 10e6);
+		bytes32 marketId = orderBook.getMarketId(address(EURT), address(USDC), 0, 10e6);
+		MatchingOrderBook.MarketDetails memory marketDetails = orderBook.getMarketDetails(marketId);
 
-	//	orderBook.createMarket(address(EURT), address(USDC), 0, 10e6);
-	//	vm.prank(user1);
-	//	EURT.approve(address(orderBook), 100e18);
-	//	vm.prank(user2);
-	//	USDC.approve(address(orderBook), 100e18);
-	//	EURT.mint(user1, 3000e6);
-	//	USDC.mint(user2, 4200e6);
-	//	bytes32 marketId = orderBook.getMarketId(address(EURT), address(USDC), 0, 10e6);
-	//	vm.prank(user1);
-	//	orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 1e6);
-	//	vm.prank(user1);
-	//	orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 11e5);
-	//	vm.prank(user1);
-	//	orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 12e5);
-	//	vm.prank(user2);
-	//	orderBook.placeOrder(marketId, MatchingOrderBook.Side.BUY, 3500e6, 12e5);
+		vm.prank(user1);
+		EURT.approve(address(orderBook), 100e18);
+		vm.prank(user2);
+		USDC.approve(address(orderBook), 100e18);
+		EURT.mint(user1, 3000e6);
+		USDC.mint(user2, 3000e6);
+		vm.prank(user1);
+		orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 1e6);
+		vm.prank(user1);
+		orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 11e5);
+		vm.prank(user1);
+		orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 12e5);
+		vm.prank(user2);
+		orderBook.placeOrder(marketId, MatchingOrderBook.Side.BUY, 2500e6, 12e5);
 
-	//	// verify post-trade balances
-	//	user1eurt = EURT.balanceOf(user1);
-	//	user1usdc = USDC.balanceOf(user1);
-	//	user2eurt = EURT.balanceOf(user2);
-	//	user2usdc = USDC.balanceOf(user2);
-	//	assertEq(user1eurt, 0);
-	//	assertEq(user1usdc, 3300e6);
-	//	assertEq(user2eurt, 3000e6);
-	//	assertEq(user2usdc, 300e6);
-	//	MatchingOrderBook.MarketDetails memory marketDetails = orderBook.getMarketDetails(marketId);
-	//	uint bankEurtBalance = EURT.balanceOf(marketDetails.bankAddress);
-	//	uint bankUsdcBalance = USDC.balanceOf(marketDetails.bankAddress);
-	//	assertEq(bankEurtBalance, 0);
-	//	assertEq(bankUsdcBalance, 600e6);
-	//	MatchingOrderBook.Order[] memory orders = orderBook.getOrderBook(address(EURT), address(USDC), MatchingOrderBook.Side.BUY, 1);
-	//	assertEq(orders[0].user, user2);
-	//	assertEq(orders[0].baseQuantity, 500e6);
-	//	assertEq(orders[0].price, 12e5);
-	//	assertEq(orders[0].nextOrderId, 0);
-	//}
+		// verify post-trade balances
+		user1eurt = EURT.balanceOf(user1);
+		user1usdc = USDC.balanceOf(user1);
+		user2eurt = EURT.balanceOf(user2);
+		user2usdc = USDC.balanceOf(user2);
+		assertEq(user1eurt, 0);
+		assertEq(user1usdc, 2700e6);
+		assertEq(user2eurt, 2500e6);
+		assertEq(user2usdc, 300e6);
+		uint bankEurtBalance = EURT.balanceOf(marketDetails.bankAddress);
+		uint bankUsdcBalance = USDC.balanceOf(marketDetails.bankAddress);
+		assertEq(bankEurtBalance, 500e6);
+		assertEq(bankUsdcBalance, 0);
+		MatchingOrderBook.Order[] memory orders = orderBook.getOrderBook(address(EURT), address(USDC), MatchingOrderBook.Side.SELL, 1);
+		assertEq(orders[0].user, user1);
+		assertEq(orders[0].baseQuantity, 500e6);
+		assertEq(orders[0].price, 12e5);
+		assertEq(orders[0].nextOrderId, 0);
+	}
 
 
 	//function testCancelOrder() public {

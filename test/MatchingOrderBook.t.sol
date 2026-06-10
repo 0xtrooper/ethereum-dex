@@ -390,6 +390,46 @@ contract MatchingOrderBookTest is Test {
 		assertEq(orders[0].nextOrderId, 0);
 	}
 
+	function testLotsOfOrders() public {
+		orderBook.createMarket(address(EURT), address(USDC), 0, 10e6);
+		bytes32 marketId = orderBook.getMarketId(address(EURT), address(USDC), 0, 10e6);
+
+		vm.prank(user1);
+		EURT.approve(address(orderBook), 100e18);
+		vm.prank(user1);
+		USDC.approve(address(orderBook), 100e18);
+		vm.prank(user2);
+		USDC.approve(address(orderBook), 100e18);
+		vm.prank(user2);
+		EURT.approve(address(orderBook), 100e18);
+		vm.prank(user3);
+		EURT.approve(address(orderBook), 100e18);
+		vm.prank(user3);
+		USDC.approve(address(orderBook), 100e18);
+		EURT.mint(user1, 3000e10);
+		EURT.mint(user2, 3000e10);
+		EURT.mint(user3, 3000e10);
+		USDC.mint(user1, 3000e10);
+		USDC.mint(user2, 3000e10);
+		USDC.mint(user3, 3000e10);
+		vm.prank(user1);
+		orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 1e6);
+		vm.prank(user1);
+		orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 11e5);
+		vm.prank(user1);
+		orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 12e5);
+		vm.prank(user2);
+		orderBook.placeOrder(marketId, MatchingOrderBook.Side.BUY, 2500e6, 12e5);
+		vm.prank(user2);
+		orderBook.placeOrder(marketId, MatchingOrderBook.Side.BUY, 2500e6, 12e5);
+		vm.prank(user3);
+		orderBook.placeOrder(marketId, MatchingOrderBook.Side.BUY, 2500e6, 11e5);
+		vm.prank(user3);
+		orderBook.placeOrder(marketId, MatchingOrderBook.Side.BUY, 2500e6, 11e5);
+		vm.prank(user2);
+		orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 2500e6, 12e5);
+	}
+
 
 	function testCancelOrder() public {
 		orderBook.createMarket(address(EURT), address(USDC), 0, 10e6);

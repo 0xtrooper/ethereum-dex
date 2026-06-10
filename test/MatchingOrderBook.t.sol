@@ -304,6 +304,14 @@ contract MatchingOrderBookTest is Test {
 		orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 11e5);
 		vm.prank(user1);
 		orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 12e5);
+		MatchingOrderBook.Order[] memory orders = orderBook.getOrderBook(marketId, MatchingOrderBook.Side.SELL, 4);
+		assertEq(orders[0].baseQuantity, 1000e6);
+		assertEq(orders[0].price, 1e6);
+		assertEq(orders[1].baseQuantity, 1000e6);
+		assertEq(orders[1].price, 11e5);
+		assertEq(orders[2].baseQuantity, 1000e6);
+		assertEq(orders[2].price, 12e5);
+		assertEq(orders[3].baseQuantity, 0, "order 4 should be empty");
 		vm.prank(user2);
 		orderBook.placeOrder(marketId, MatchingOrderBook.Side.BUY, 3500e6, 12e5);
 
@@ -321,7 +329,7 @@ contract MatchingOrderBookTest is Test {
 		uint bankUsdcBalance = USDC.balanceOf(marketDetails.bankAddress);
 		assertEq(bankEurtBalance, 0);
 		assertEq(bankUsdcBalance, 600e6, "bank usdc balance is wrong");
-		MatchingOrderBook.Order[] memory orders = orderBook.getOrderBook(marketId, MatchingOrderBook.Side.BUY, 1);
+		orders = orderBook.getOrderBook(marketId, MatchingOrderBook.Side.BUY, 1);
 		assertEq(orders[0].user, user2);
 		assertEq(orders[0].baseQuantity, 500e6);
 		assertEq(orders[0].price, 12e5);
@@ -473,7 +481,6 @@ contract MatchingOrderBookTest is Test {
 		EURT.mint(user1, 1000e6);
 		vm.prank(user1);
 		uint128 orderId = orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 1e6);
-	        MatchingOrderBook.Order memory order = orderBook.getOrder(marketId, MatchingOrderBook.Side.SELL, orderId);
 		vm.prank(user2);
 		vm.expectRevert("users can only cancel their own order / order may not exist");
 		orderBook.cancelOrder(marketId, MatchingOrderBook.Side.SELL, orderId);
@@ -494,11 +501,11 @@ contract MatchingOrderBookTest is Test {
 			USDC.transfer(burnAddress, user1usdc);
 		}
 		if (user2eurt != 0) {
-			vm.prank(user1);
+			vm.prank(user2);
 			EURT.transfer(burnAddress, user2eurt);
 		}
 		if (user2usdc != 0) {
-			vm.prank(user1);
+			vm.prank(user2);
 			USDC.transfer(burnAddress, user2usdc);
 		}
 
@@ -546,6 +553,21 @@ contract MatchingOrderBookTest is Test {
 		assertEq(orders[0].price, 0);
 		assertEq(orders[0].nextOrderId, 0);
 		assertEq(orders[0].previousOrderId, 0);
+	}
+
+	function testFillOrKillTooSmallFill() public {
+		orderBook.createMarket(address(EURT), address(USDC), 0, 1000e6);
+		bytes32 marketId = orderBook.getMarketId(address(EURT), address(USDC), 0, 1000e6);
+		vm.prank(user1);
+		EURT.approve(address(orderBook), 300e18);
+		EURT.mint(user1, 1000e6);
+		vm.prank(user1);
+		USDC.approve(address(orderBook), 300e18);
+		USDC.mint(user1, 1000e6);
+		vm.prank(user1);
+		orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 1e6);
+		vm.prank(user2);
+		orderBook.placeOrder(marketId, MatchingOrderBook.Side.BUY, 500e6, 1e6);
 	}
 
 }

@@ -94,6 +94,8 @@ contract MatchingOrderBook {
 			uint transferredBaseQuantity = afterBalance - beforeBalance;
 			if (transferredBaseQuantity != baseQuantity) {
 				baseQuantity = transferredBaseQuantity;
+				placeOrderVars.quoteQuantity = baseQuantity * price / 10**quoteTokenDecimals;
+				require(placeOrderVars.quoteQuantity > 0, "calculated quote quantity is zero");
 			}
 		} else if (side == Side.BUY) {
 			IERC20 quoteTokenIERC20 = IERC20(marketDetails.quoteToken);
@@ -102,6 +104,7 @@ contract MatchingOrderBook {
 			uint afterBalance = quoteTokenIERC20.balanceOf(marketDetails.bankAddress);
 			uint transferredQuoteQuantity = afterBalance - beforeBalance;
 			if (transferredQuoteQuantity != placeOrderVars.quoteQuantity) {
+				require(transferredQuoteQuantity > 0, "transferred quote quantity is zero");
 				placeOrderVars.quoteQuantity = transferredQuoteQuantity;
 				price = baseQuantity * 10**quoteTokenDecimals / transferredQuoteQuantity;
 			}
@@ -125,7 +128,7 @@ contract MatchingOrderBook {
 				}
 
 				placeOrderVars.fillOccurred = true;
-				uint fillBaseQuantity = baseQuantity > fillOrder.baseQuantity ? fillOrder.baseQuantity : baseQuantity;
+				uint fillBaseQuantity = (baseQuantity > fillOrder.baseQuantity) ? fillOrder.baseQuantity : baseQuantity;
 				uint fillQuoteQuantity = fillBaseQuantity * fillOrder.price / 10**quoteTokenDecimals;
 				placeOrderVars.usedQuoteQuantity += fillQuoteQuantity;
 				emit OrderFill(placeOrderVars.fillOrderId, fillBaseQuantity);
@@ -140,22 +143,17 @@ contract MatchingOrderBook {
 
 				if (baseQuantity >= fillOrder.baseQuantity) {
 					delete orders[marketId][placeOrderVars.makerSide][placeOrderVars.fillOrderId];
-					if (fillOrder.nextOrderId != 0) {
-						orders[marketId][placeOrderVars.makerSide][fillOrder.nextOrderId].previousOrderId = 0;
-					}
+					orderbooks[marketId][placeOrderVars.makerSide] = fillOrder.nextOrderId;
+					orders[marketId][placeOrderVars.makerSide][fillOrder.nextOrderId].previousOrderId = 0;
 				}
 				if (baseQuantity > fillOrder.baseQuantity) {
+					baseQuantity -= fillOrder.baseQuantity;
 					placeOrderVars.fillOrderId = fillOrder.nextOrderId;
 					fillOrder = orders[marketId][placeOrderVars.makerSide][placeOrderVars.fillOrderId];
-					baseQuantity -= fillBaseQuantity;
 					continue;
 				}
-				else if (baseQuantity == fillOrder.baseQuantity) {
-					orderbooks[marketId][placeOrderVars.makerSide] = fillOrder.nextOrderId;
-				}
-				else { // if (baseQuantity < fillOrder.baseQuantity)
-					orders[marketId][placeOrderVars.makerSide][placeOrderVars.fillOrderId].baseQuantity -= fillBaseQuantity;
-					orderbooks[marketId][placeOrderVars.makerSide] = placeOrderVars.fillOrderId;
+				else if (baseQuantity < fillOrder.baseQuantity) {
+					orders[marketId][placeOrderVars.makerSide][placeOrderVars.fillOrderId].baseQuantity -= baseQuantity;
 				}
 
 				if (baseQuantity <= fillOrder.baseQuantity) {
@@ -174,7 +172,7 @@ contract MatchingOrderBook {
 		// Block scope this to avoid too many local variables
 		{
 			uint postQuoteQuantity = baseQuantity * price / 10**quoteTokenDecimals;
-			bool canPost = baseQuantity > marketDetails.baseMinPostSize && postQuoteQuantity >  marketDetails.quoteMinPostSize;
+			bool canPost = baseQuantity > marketDetails.baseMinPostSize && postQuoteQuantity > marketDetails.quoteMinPostSize;
 			require(placeOrderVars.fillOccurred || canPost, "fill or kill. didn't fill");
 
 			// refund orders which filled but can't post

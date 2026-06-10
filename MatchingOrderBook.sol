@@ -184,7 +184,9 @@ contract MatchingOrderBook {
 			orders[marketDetails.baseToken][marketDetails.quoteToken][side][orderId] = Order(msg.sender, baseQuantity, price, nextOrderId);
 		}
 
-		bytes32 markethash = keccak256(abi.encodePacked(marketDetails.baseToken, marketDetails.quoteToken));
+		// TODO: Uncommenting this leads to a StackTooDeepError from too many local variables
+		// Would like to figure out a fix and emit this event if possible
+		//bytes32 markethash = keccak256(abi.encodePacked(marketDetails.baseToken, marketDetails.quoteToken));
 		//emit OrderPlaced(orderId, msg.sender, marketDetails.baseToken, marketDetails.quoteToken, markethash, side, baseQuantity, price);
 	}
 

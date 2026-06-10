@@ -55,8 +55,8 @@ contract MatchingOrderBook {
 		uint usedQuoteQuantity;
 	}
 	mapping(bytes32 => MarketDetails) public MARKET_DETAILS; // market_id -> MarketDetails
-	mapping(address => mapping(address => mapping(Side => uint128))) orderbooks; // baseToken -> quoteToken -> Side -> firstOrderId
-	mapping(address => mapping(address => mapping(Side => mapping(uint128 => Order)))) orders; // baseToken -> quoteToken -> Side -> orderId -> Order
+	mapping(bytes32 => mapping(Side => uint128)) orderbooks; // marketId -> Side -> firstOrderId
+	mapping(bytes32 => mapping(Side => mapping(uint128 => Order))) orders; // marketId -> Side -> orderId -> Order
 	uint128 public orderCounter = 1;
 
 	event OrderPlaced(uint indexed orderId, address indexed user, address baseToken, address quoteToken, bytes32 indexed markethash, Side side, uint baseQuantity, uint price);
@@ -107,8 +107,8 @@ contract MatchingOrderBook {
 		// Block scope this to avoid too many local variables
 		{
 			Side makerSide = side == Side.SELL ? Side.BUY : Side.SELL;
-			uint128 fillOrderId = orderbooks[marketDetails.baseToken][marketDetails.quoteToken][makerSide];
-			Order memory fillOrder = orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId];
+			uint128 fillOrderId = orderbooks[marketId][makerSide];
+			Order memory fillOrder = orders[marketId][makerSide][fillOrderId];
 
 			// Fill Against Opposite Book
 			while (fillOrder.user != address(0)) {
@@ -121,9 +121,9 @@ contract MatchingOrderBook {
 
 				placeOrderVars.fillOccurred = true;
 				if (baseQuantity > fillOrder.baseQuantity) {
-					delete orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId];
+					delete orders[marketId][makerSide][fillOrderId];
 					if (fillOrder.nextOrderId != 0) {
-						orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrder.nextOrderId].previousOrderId = 0;
+						orders[marketId][makerSide][fillOrder.nextOrderId].previousOrderId = 0;
 					}
 					emit OrderFill(fillOrderId, fillOrder.baseQuantity);
 					uint fillOrderQuoteQuantity = fillOrder.baseQuantity * fillOrder.price / 10**quoteTokenDecimals;
@@ -137,11 +137,11 @@ contract MatchingOrderBook {
 						Bank(marketDetails.bankAddress).withdrawTo(fillOrder.user, marketDetails.quoteToken, fillOrderQuoteQuantity);
 					}
 					fillOrderId = fillOrder.nextOrderId;
-					fillOrder = orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId];
+					fillOrder = orders[marketId][makerSide][fillOrderId];
 				}
 				else { // baseQuantity <= fillOrder.baseQuantity
-					orderbooks[marketDetails.baseToken][marketDetails.quoteToken][makerSide] = fillOrderId;
-					orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId].baseQuantity -= baseQuantity;
+					orderbooks[marketId][makerSide] = fillOrderId;
+					orders[marketId][makerSide][fillOrderId].baseQuantity -= baseQuantity;
 					emit OrderFill(fillOrderId, baseQuantity);
 					uint fillQuoteQuantity = baseQuantity * fillOrder.price / 10**quoteTokenDecimals;
 					placeOrderVars.usedQuoteQuantity += fillQuoteQuantity;
@@ -191,19 +191,19 @@ contract MatchingOrderBook {
 		// Place leftover orders in book then refund leftover funds
 		// Block scope this to avoid too many local variables
 		{
-			uint128 nextOrderId = orderbooks[marketDetails.baseToken][marketDetails.quoteToken][side];
+			uint128 nextOrderId = orderbooks[marketId][side];
 			uint128 previousOrderId = 0;
 			if (nextOrderId == 0) {
-				orderbooks[marketDetails.baseToken][marketDetails.quoteToken][side] = orderId;
+				orderbooks[marketId][side] = orderId;
 			}
 			else {
-				while (nextOrderId != 0 && orders[marketDetails.baseToken][marketDetails.quoteToken][side][nextOrderId].price <= price) {
+				while (nextOrderId != 0 && orders[marketId][side][nextOrderId].price <= price) {
 					previousOrderId = nextOrderId;
-					nextOrderId = orders[marketDetails.baseToken][marketDetails.quoteToken][side][nextOrderId].nextOrderId;
+					nextOrderId = orders[marketId][side][nextOrderId].nextOrderId;
 				}
-				orders[marketDetails.baseToken][marketDetails.quoteToken][side][previousOrderId].nextOrderId = orderId;
+				orders[marketId][side][previousOrderId].nextOrderId = orderId;
 			}
-			orders[marketDetails.baseToken][marketDetails.quoteToken][side][orderId] = Order(msg.sender, baseQuantity, price, nextOrderId, previousOrderId);
+			orders[marketId][side][orderId] = Order(msg.sender, baseQuantity, price, nextOrderId, previousOrderId);
 
 			// refund leftover funds if necessary
 			if (side == Side.BUY) {
@@ -220,14 +220,14 @@ contract MatchingOrderBook {
 
 	function cancelOrder(bytes32 marketId, Side side, uint128 orderId) external {
 		MarketDetails memory marketDetails = MARKET_DETAILS[marketId];
-		Order memory order = orders[marketDetails.baseToken][marketDetails.quoteToken][side][orderId];
+		Order memory order = orders[marketId][side][orderId];
 		require(msg.sender == order.user, "users can only cancel their own order / order may not exist");
-		delete orders[marketDetails.baseToken][marketDetails.quoteToken][side][orderId];
+		delete orders[marketId][side][orderId];
 		if (order.nextOrderId != 0) {
-			orders[marketDetails.baseToken][marketDetails.quoteToken][side][order.nextOrderId].previousOrderId = order.previousOrderId;
+			orders[marketId][side][order.nextOrderId].previousOrderId = order.previousOrderId;
 		}
 		if (order.previousOrderId != 0) {
-			orders[marketDetails.baseToken][marketDetails.quoteToken][side][order.previousOrderId].nextOrderId = order.nextOrderId;
+			orders[marketId][side][order.previousOrderId].nextOrderId = order.nextOrderId;
 		}
 
 		// Re-entrancy here is limited to malicious tokens
@@ -250,20 +250,20 @@ contract MatchingOrderBook {
 		return MARKET_DETAILS[marketId];
 	}
 
-	function getOrder(address baseToken, address quoteToken, Side side, uint128 orderId) external view returns (Order memory) {
-		return orders[baseToken][quoteToken][side][orderId];
+	function getOrder(bytes32 marketId, Side side, uint128 orderId) external view returns (Order memory) {
+		return orders[marketId][side][orderId];
 	}
 
-	function getFirstOrderId(address baseToken, address quoteToken, Side side) external view returns (uint) {
-		return orderbooks[baseToken][quoteToken][side];
+	function getFirstOrderId(bytes32 marketId, Side side) external view returns (uint) {
+		return orderbooks[marketId][side];
 	}
 
-	function getOrderBook(address baseToken, address quoteToken, Side side, uint depth) external view returns (Order[] memory) {
+	function getOrderBook(bytes32 marketId, Side side, uint depth) external view returns (Order[] memory) {
 		Order[] memory returnOrders = new Order[](depth); 
-		uint128 orderId = orderbooks[baseToken][quoteToken][side];
+		uint128 orderId = orderbooks[marketId][side];
 		for (uint i=0; i < depth; i++) {
-			returnOrders[i] = orders[baseToken][quoteToken][side][orderId];
-			orderId = orders[baseToken][quoteToken][side][orderId].nextOrderId;
+			returnOrders[i] = orders[marketId][side][orderId];
+			orderId = orders[marketId][side][orderId].nextOrderId;
 		}
 		return returnOrders;
 	}

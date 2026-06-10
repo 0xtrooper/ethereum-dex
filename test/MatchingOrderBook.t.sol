@@ -63,14 +63,14 @@ contract MatchingOrderBookTest is Test {
 		bytes32 marketId = orderBook.getMarketId(address(EURT), address(USDC), 0, 10e6);
 		vm.prank(user1);
 		uint128 orderId = orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 115e6, 1e6);
-	        MatchingOrderBook.Order memory order = orderBook.getOrder(address(EURT), address(USDC), MatchingOrderBook.Side.SELL, orderId);
+	        MatchingOrderBook.Order memory order = orderBook.getOrder(marketId, MatchingOrderBook.Side.SELL, orderId);
 		assertEq(order.user, user1, "User should match");
 		assertEq(order.baseQuantity, 115e6, "Base Quantity should match");
 		assertEq(order.price, 1e6, "Price should match");
 		MatchingOrderBook.MarketDetails memory marketDetails = orderBook.getMarketDetails(marketId);
 		uint bankEurtBalance = EURT.balanceOf(marketDetails.bankAddress);
 		assertEq(bankEurtBalance, 115e6);
-		MatchingOrderBook.Order[] memory orders = orderBook.getOrderBook(address(EURT), address(USDC), MatchingOrderBook.Side.SELL, 1);
+		MatchingOrderBook.Order[] memory orders = orderBook.getOrderBook(marketId, MatchingOrderBook.Side.SELL, 1);
 		assertEq(orders[0].user, user1);
 		assertEq(orders[0].baseQuantity, 115e6);
 		assertEq(orders[0].price, 1e6);
@@ -85,14 +85,14 @@ contract MatchingOrderBookTest is Test {
 		bytes32 marketId = orderBook.getMarketId(address(EURT), address(USDC), 0, 10e6);
 		vm.prank(user1);
 		uint128 orderId = orderBook.placeOrder(marketId, MatchingOrderBook.Side.BUY, 115e6, 1e6);
-	        MatchingOrderBook.Order memory order = orderBook.getOrder(address(EURT), address(USDC), MatchingOrderBook.Side.BUY, orderId);
+	        MatchingOrderBook.Order memory order = orderBook.getOrder(marketId, MatchingOrderBook.Side.BUY, orderId);
 		assertEq(order.user, user1, "User should match");
 		assertEq(order.baseQuantity, 115e6, "Base Quantity should match");
 		assertEq(order.price, 1e6, "Price should match");
 		MatchingOrderBook.MarketDetails memory marketDetails = orderBook.getMarketDetails(marketId);
 		uint bankUsdcBalance = USDC.balanceOf(marketDetails.bankAddress);
 		assertEq(bankUsdcBalance, 115e6);
-		MatchingOrderBook.Order[] memory orders = orderBook.getOrderBook(address(EURT), address(USDC), MatchingOrderBook.Side.BUY, 1);
+		MatchingOrderBook.Order[] memory orders = orderBook.getOrderBook(marketId, MatchingOrderBook.Side.BUY, 1);
 		assertEq(orders[0].user, user1);
 		assertEq(orders[0].baseQuantity, 115e6);
 		assertEq(orders[0].price, 1e6);
@@ -260,7 +260,7 @@ contract MatchingOrderBookTest is Test {
 		uint bankUsdcBalance = USDC.balanceOf(marketDetails.bankAddress);
 		assertEq(bankEurtBalance, 0);
 		assertEq(bankUsdcBalance, 600e6);
-		MatchingOrderBook.Order[] memory orders = orderBook.getOrderBook(address(EURT), address(USDC), MatchingOrderBook.Side.BUY, 1);
+		MatchingOrderBook.Order[] memory orders = orderBook.getOrderBook(marketId, MatchingOrderBook.Side.BUY, 1);
 		assertEq(orders[0].user, user1);
 		assertEq(orders[0].baseQuantity, 500e6);
 		assertEq(orders[0].price, 12e5);
@@ -321,7 +321,7 @@ contract MatchingOrderBookTest is Test {
 		uint bankUsdcBalance = USDC.balanceOf(marketDetails.bankAddress);
 		assertEq(bankEurtBalance, 0);
 		assertEq(bankUsdcBalance, 600e6);
-		MatchingOrderBook.Order[] memory orders = orderBook.getOrderBook(address(EURT), address(USDC), MatchingOrderBook.Side.BUY, 1);
+		MatchingOrderBook.Order[] memory orders = orderBook.getOrderBook(marketId, MatchingOrderBook.Side.BUY, 1);
 		assertEq(orders[0].user, user2);
 		assertEq(orders[0].baseQuantity, 500e6);
 		assertEq(orders[0].price, 12e5);
@@ -383,7 +383,7 @@ contract MatchingOrderBookTest is Test {
 		uint bankUsdcBalance = USDC.balanceOf(marketDetails.bankAddress);
 		assertEq(bankEurtBalance, 500e6);
 		assertEq(bankUsdcBalance, 0);
-		MatchingOrderBook.Order[] memory orders = orderBook.getOrderBook(address(EURT), address(USDC), MatchingOrderBook.Side.SELL, 1);
+		MatchingOrderBook.Order[] memory orders = orderBook.getOrderBook(marketId, MatchingOrderBook.Side.SELL, 1);
 		assertEq(orders[0].user, user1);
 		assertEq(orders[0].baseQuantity, 500e6);
 		assertEq(orders[0].price, 12e5);
@@ -391,24 +391,22 @@ contract MatchingOrderBookTest is Test {
 	}
 
 
-	//function testCancelOrder() public {
-	//	orderBook.createMarket(address(USDC), address(EURT));
-	//	vm.prank(user1);
-	//	USDC.approve(address(orderBook), 300e18);
-	//	USDC.mint(user1, 1000*1e18);
-	//	vm.prank(user1);
-	//	uint orderId = orderBook.placeOrder(address(USDC), address(EURT), MatchingOrderBook.Side.SELL, 100 * 1e18, 1e6);
-	//        MatchingOrderBook.Order memory order = orderBook.getOrder(address(USDC), address(EURT), orderId);
-	//	assertEq(order.user, user1, "User should match");
-	//	assertEq(order.baseQuantity, 100 * 1e18, "Base Quantity should match");
-	//	assertEq(order.price, 1e6, "Price should match");
-	//	vm.prank(user1);
-	//	orderBook.cancelOrder(address(USDC), address(EURT), orderId);
-	//        order = orderBook.getOrder(address(USDC), address(EURT), orderId);
-	//	assertEq(order.user, address(0), "User should be deleted");
-	//	assertEq(order.baseQuantity, 0, "Base Quantity should be deleted");
-	//	assertEq(order.price, 0, "Price should be deleted");
-	//}
+	function testCancelOrder() public {
+		orderBook.createMarket(address(EURT), address(USDC), 0, 10e6);
+		bytes32 marketId = orderBook.getMarketId(address(EURT), address(USDC), 0, 10e6);
+		vm.prank(user1);
+		EURT.approve(address(orderBook), 300e18);
+		EURT.mint(user1, 1000e6);
+		vm.prank(user1);
+		uint128 orderId = orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 1e6);
+	        MatchingOrderBook.Order memory order = orderBook.getOrder(marketId, MatchingOrderBook.Side.SELL, orderId);
+		vm.prank(user1);
+		orderBook.cancelOrder(marketId, MatchingOrderBook.Side.SELL, orderId);
+	        order = orderBook.getOrder(marketId, MatchingOrderBook.Side.SELL, orderId);
+		assertEq(order.user, address(0), "User should be deleted");
+		assertEq(order.baseQuantity, 0, "Base Quantity should be deleted");
+		assertEq(order.price, 0, "Price should be deleted");
+	}
 
 	//function testDoubleCancelOrderFail() public {
 	//	orderBook.createMarket(address(USDC), address(EURT));
@@ -417,13 +415,13 @@ contract MatchingOrderBookTest is Test {
 	//	USDC.mint(user1, 1000*1e18);
 	//	vm.prank(user1);
 	//	uint orderId = orderBook.placeOrder(address(USDC), address(EURT), MatchingOrderBook.Side.SELL, 100 * 1e18, 1e6);
-	//        MatchingOrderBook.Order memory order = orderBook.getOrder(address(USDC), address(EURT), orderId);
+	//        MatchingOrderBook.Order memory order = orderBook.getOrder(marketId, orderId);
 	//	assertEq(order.user, user1, "User should match");
 	//	assertEq(order.baseQuantity, 100 * 1e18, "Base Quantity should match");
 	//	assertEq(order.price, 1e6, "Price should match");
 	//	vm.prank(user1);
 	//	orderBook.cancelOrder(address(USDC), address(EURT), orderId);
-	//        order = orderBook.getOrder(address(USDC), address(EURT), orderId);
+	//        order = orderBook.getOrder(marketId, orderId);
 	//	assertEq(order.user, address(0), "User should be deleted");
 	//	assertEq(order.baseQuantity, 0, "Base Quantity should be deleted");
 	//	assertEq(order.price, 0, "Price should be deleted");
@@ -438,7 +436,7 @@ contract MatchingOrderBookTest is Test {
 	//	USDC.mint(user1, 1000*1e18);
 	//	vm.prank(user1);
 	//	uint orderId = orderBook.placeOrder(address(USDC), address(EURT), MatchingOrderBook.Side.SELL, 100 * 1e18, 1e6);
-	//        MatchingOrderBook.Order memory order = orderBook.getOrder(address(USDC), address(EURT), orderId);
+	//        MatchingOrderBook.Order memory order = orderBook.getOrder(marketId, orderId);
 	//	assertEq(order.user, user1, "User should match");
 	//	assertEq(order.baseQuantity, 100 * 1e18, "Base Quantity should match");
 	//	assertEq(order.price, 1e6, "Price should match");
@@ -454,7 +452,7 @@ contract MatchingOrderBookTest is Test {
 	//	EURT.mint(user1, 1000*1e6);
 	//	vm.prank(user1);
 	//	uint orderId = orderBook.placeOrder(address(EURT), address(USDC), MatchingOrderBook.Side.SELL, 115 * 1e6, 115e4);
-	//        MatchingOrderBook.Order memory order = orderBook.getOrder(address(EURT), address(USDC), orderId);
+	//        MatchingOrderBook.Order memory order = orderBook.getOrder(marketId, orderId);
 	//	assertEq(order.user, user1, "User should match");
 	//	assertEq(order.baseQuantity, 115 * 1e6, "Base Quantity should match");
 	//	assertEq(order.price, 115e4, "Price should match");
@@ -463,7 +461,7 @@ contract MatchingOrderBookTest is Test {
 	//	USDC.mint(user2, 1000e6);
 	//	vm.prank(user2);
 	//	orderBook.fillOrder(orderId, address(EURT), address(USDC), 100e6);
-	//        order = orderBook.getOrder(address(EURT), address(USDC), orderId);
+	//        order = orderBook.getOrder(marketId, orderId);
 	//	assertEq(order.user, user1, "User should be user who placed order");
 	//	assertEq(order.baseQuantity, 15e6, "Remaining Base Quantity is wrong");
 	//	assertEq(order.price, 115e4, "Price shouldn't change");
@@ -513,7 +511,7 @@ contract MatchingOrderBookTest is Test {
 	//	EURT.mint(user1, 1000*1e6);
 	//	vm.prank(user1);
 	//	uint orderId = orderBook.placeOrder(address(EURT), address(USDC), MatchingOrderBook.Side.SELL, 115 * 1e6, 1e6);
-	//        MatchingOrderBook.Order memory order = orderBook.getOrder(address(EURT), address(USDC), orderId);
+	//        MatchingOrderBook.Order memory order = orderBook.getOrder(marketId, orderId);
 	//	assertEq(order.user, user1, "User should match");
 	//	assertEq(order.baseQuantity, 115 * 1e6, "Base Quantity should match");
 	//	assertEq(order.price, 1e6, "Price should match");
@@ -522,14 +520,14 @@ contract MatchingOrderBookTest is Test {
 	//	USDC.mint(user2, 1000e6);
 	//	vm.prank(user2);
 	//	orderBook.fillOrder(orderId, address(EURT), address(USDC), 100e6);
-	//        order = orderBook.getOrder(address(EURT), address(USDC), orderId);
+	//        order = orderBook.getOrder(marketId, orderId);
 	//	assertEq(order.user, user1, "User should be user who placed order");
 	//	assertEq(order.baseQuantity, 15e6, "Remaining Base Quantity is wrong");
 	//	assertEq(order.price, 1e6, "Price shouldn't change");
 
 	//	vm.prank(user2);
 	//	orderBook.fillOrder(orderId, address(EURT), address(USDC), 15e6);
-	//        order = orderBook.getOrder(address(EURT), address(USDC), orderId);
+	//        order = orderBook.getOrder(marketId, orderId);
 	//	assertEq(order.user, address(0), "User should be deleted after order fill");
 	//	assertEq(order.baseQuantity, 0, "Remaining Base Quantity is wrong");
 	//	assertEq(order.price, 0, "Order should be deleted after fill");
@@ -542,7 +540,7 @@ contract MatchingOrderBookTest is Test {
 	//	EURT.mint(user1, 1000*1e6);
 	//	vm.prank(user1);
 	//	uint orderId = orderBook.placeOrder(address(EURT), address(USDC), MatchingOrderBook.Side.SELL, 115 * 1e6, 1e6);
-	//        MatchingOrderBook.Order memory order = orderBook.getOrder(address(EURT), address(USDC), orderId);
+	//        MatchingOrderBook.Order memory order = orderBook.getOrder(marketId, orderId);
 	//	assertEq(order.user, user1, "User should match");
 	//	assertEq(order.baseQuantity, 115 * 1e6, "Base Quantity should match");
 	//	assertEq(order.price, 1e6, "Price should match");
@@ -551,7 +549,7 @@ contract MatchingOrderBookTest is Test {
 	//	USDC.mint(user2, 1000e6);
 	//	vm.prank(user2);
 	//	orderBook.fillOrder(orderId, address(EURT), address(USDC), 115e6);
-	//        order = orderBook.getOrder(address(EURT), address(USDC), orderId);
+	//        order = orderBook.getOrder(marketId, orderId);
 	//	assertEq(order.user, address(0), "Order should be deleted after fill");
 	//	assertEq(order.baseQuantity, 0, "Order should be deleted after fill");
 	//	assertEq(order.price, 0, "Order should be deleted after fill");
@@ -564,7 +562,7 @@ contract MatchingOrderBookTest is Test {
 	//	EURT.mint(user1, 1000*1e6);
 	//	vm.prank(user1);
 	//	uint orderId = orderBook.placeOrder(address(EURT), address(USDC), MatchingOrderBook.Side.SELL, 115 * 1e6, 1e6);
-	//        MatchingOrderBook.Order memory order = orderBook.getOrder(address(EURT), address(USDC), orderId);
+	//        MatchingOrderBook.Order memory order = orderBook.getOrder(marketId, orderId);
 	//	assertEq(order.user, user1, "User should match");
 	//	assertEq(order.baseQuantity, 115 * 1e6, "Base Quantity should match");
 	//	assertEq(order.price, 1e6, "Price should match");
@@ -583,7 +581,7 @@ contract MatchingOrderBookTest is Test {
 	//	EURT.mint(user1, 1000*1e6);
 	//	vm.prank(user1);
 	//	uint orderId = orderBook.placeOrder(address(EURT), address(USDC), MatchingOrderBook.Side.SELL, 115 * 1e6, 1e6);
-	//        MatchingOrderBook.Order memory order = orderBook.getOrder(address(EURT), address(USDC), orderId);
+	//        MatchingOrderBook.Order memory order = orderBook.getOrder(marketId, orderId);
 	//	assertEq(order.user, user1, "User should match");
 	//	assertEq(order.baseQuantity, 115 * 1e6, "Base Quantity should match");
 	//	assertEq(order.price, 1e6, "Price should match");
@@ -592,7 +590,7 @@ contract MatchingOrderBookTest is Test {
 	//	USDC.mint(user2, 1000e6);
 	//	vm.prank(user2);
 	//	orderBook.fillOrder(orderId, address(EURT), address(USDC), 100e6);
-	//        order = orderBook.getOrder(address(EURT), address(USDC), orderId);
+	//        order = orderBook.getOrder(marketId, orderId);
 	//	assertEq(order.user, user1, "User should be user who placed order");
 	//	assertEq(order.baseQuantity, 15e6, "Remaining Base Quantity is wrong");
 	//	assertEq(order.price, 1e6, "Remaining Quote Quantity is wrong");

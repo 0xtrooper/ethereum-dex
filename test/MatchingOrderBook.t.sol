@@ -62,7 +62,7 @@ contract MatchingOrderBookTest is Test {
 		EURT.mint(user1, 1000*1e18);
 		bytes32 marketId = orderBook.getMarketId(address(EURT), address(USDC), 0, 10e6);
 		vm.prank(user1);
-		uint orderId = orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 115e6, 1e6);
+		uint128 orderId = orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 115e6, 1e6);
 	        MatchingOrderBook.Order memory order = orderBook.getOrder(address(EURT), address(USDC), MatchingOrderBook.Side.SELL, orderId);
 		assertEq(order.user, user1, "User should match");
 		assertEq(order.baseQuantity, 115e6, "Base Quantity should match");
@@ -84,7 +84,7 @@ contract MatchingOrderBookTest is Test {
 		USDC.mint(user1, 1000*1e18);
 		bytes32 marketId = orderBook.getMarketId(address(EURT), address(USDC), 0, 10e6);
 		vm.prank(user1);
-		uint orderId = orderBook.placeOrder(marketId, MatchingOrderBook.Side.BUY, 115e6, 1e6);
+		uint128 orderId = orderBook.placeOrder(marketId, MatchingOrderBook.Side.BUY, 115e6, 1e6);
 	        MatchingOrderBook.Order memory order = orderBook.getOrder(address(EURT), address(USDC), MatchingOrderBook.Side.BUY, orderId);
 		assertEq(order.user, user1, "User should match");
 		assertEq(order.baseQuantity, 115e6, "Base Quantity should match");

@@ -39,7 +39,8 @@ contract MatchingOrderBook {
 		address user;
 		uint baseQuantity;
 		uint price;
-		uint nextOrderId;
+		uint128 nextOrderId;
+		uint128 previousOrderId;
 	}
 	struct MarketDetails {
 		address baseToken;
@@ -54,9 +55,9 @@ contract MatchingOrderBook {
 		uint usedQuoteQuantity;
 	}
 	mapping(bytes32 => MarketDetails) public MARKET_DETAILS; // market_id -> MarketDetails
-	mapping(address => mapping(address => mapping(Side => uint))) orderbooks; // baseToken -> quoteToken -> Side -> firstOrderId
-	mapping(address => mapping(address => mapping(Side => mapping(uint => Order)))) orders; // baseToken -> quoteToken -> Side -> orderId -> Order
-	uint public orderCounter = 1;
+	mapping(address => mapping(address => mapping(Side => uint128))) orderbooks; // baseToken -> quoteToken -> Side -> firstOrderId
+	mapping(address => mapping(address => mapping(Side => mapping(uint128 => Order)))) orders; // baseToken -> quoteToken -> Side -> orderId -> Order
+	uint128 public orderCounter = 1;
 
 	event OrderPlaced(uint indexed orderId, address indexed user, address baseToken, address quoteToken, bytes32 indexed markethash, Side side, uint baseQuantity, uint price);
 	event OrderCanceled(uint indexed orderId);
@@ -69,7 +70,7 @@ contract MatchingOrderBook {
 		MARKET_DETAILS[marketId] = MarketDetails(baseToken, quoteToken, baseMinimum, quoteMinimum, bankAddress);
 	}
 
-	function placeOrder(bytes32 marketId, Side side, uint baseQuantity, uint price) external payable returns (uint orderId) {
+	function placeOrder(bytes32 marketId, Side side, uint baseQuantity, uint price) external payable returns (uint128 orderId) {
 		MarketDetails memory marketDetails = MARKET_DETAILS[marketId];
 		PlaceOrderVars memory placeOrderVars = PlaceOrderVars(false, 0, 0);
 		require(marketDetails.bankAddress != address(0), "createMarket before placing an order on it");
@@ -106,7 +107,7 @@ contract MatchingOrderBook {
 		// Block scope this to avoid too many local variables
 		{
 			Side makerSide = side == Side.SELL ? Side.BUY : Side.SELL;
-			uint fillOrderId = orderbooks[marketDetails.baseToken][marketDetails.quoteToken][makerSide];
+			uint128 fillOrderId = orderbooks[marketDetails.baseToken][marketDetails.quoteToken][makerSide];
 			Order memory fillOrder = orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId];
 
 			// Fill Against Opposite Book
@@ -121,6 +122,9 @@ contract MatchingOrderBook {
 				placeOrderVars.fillOccurred = true;
 				if (baseQuantity > fillOrder.baseQuantity) {
 					delete orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrderId];
+					if (fillOrder.nextOrderId != 0) {
+						orders[marketDetails.baseToken][marketDetails.quoteToken][makerSide][fillOrder.nextOrderId].previousOrderId = 0;
+					}
 					emit OrderFill(fillOrderId, fillOrder.baseQuantity);
 					uint fillOrderQuoteQuantity = fillOrder.baseQuantity * fillOrder.price / 10**quoteTokenDecimals;
 					baseQuantity -= fillOrder.baseQuantity;
@@ -187,19 +191,19 @@ contract MatchingOrderBook {
 		// Place leftover orders in book then refund leftover funds
 		// Block scope this to avoid too many local variables
 		{
-			uint nextOrderId = orderbooks[marketDetails.baseToken][marketDetails.quoteToken][side];
+			uint128 nextOrderId = orderbooks[marketDetails.baseToken][marketDetails.quoteToken][side];
+			uint128 previousOrderId = 0;
 			if (nextOrderId == 0) {
 				orderbooks[marketDetails.baseToken][marketDetails.quoteToken][side] = orderId;
 			}
 			else {
-				uint previousOrderId = 0;
 				while (nextOrderId != 0 && orders[marketDetails.baseToken][marketDetails.quoteToken][side][nextOrderId].price <= price) {
 					previousOrderId = nextOrderId;
 					nextOrderId = orders[marketDetails.baseToken][marketDetails.quoteToken][side][nextOrderId].nextOrderId;
 				}
 				orders[marketDetails.baseToken][marketDetails.quoteToken][side][previousOrderId].nextOrderId = orderId;
 			}
-			orders[marketDetails.baseToken][marketDetails.quoteToken][side][orderId] = Order(msg.sender, baseQuantity, price, nextOrderId);
+			orders[marketDetails.baseToken][marketDetails.quoteToken][side][orderId] = Order(msg.sender, baseQuantity, price, nextOrderId, previousOrderId);
 
 			// refund leftover funds if necessary
 			if (side == Side.BUY) {
@@ -214,11 +218,17 @@ contract MatchingOrderBook {
 		emit OrderPlaced(orderId, msg.sender, marketDetails.baseToken, marketDetails.quoteToken, markethash, side, baseQuantity, price);
 	}
 
-	function cancelOrder(bytes32 marketId, Side side, uint orderId) external {
+	function cancelOrder(bytes32 marketId, Side side, uint128 orderId) external {
 		MarketDetails memory marketDetails = MARKET_DETAILS[marketId];
 		Order memory order = orders[marketDetails.baseToken][marketDetails.quoteToken][side][orderId];
 		require(msg.sender == order.user, "users can only cancel their own order / order may not exist");
 		delete orders[marketDetails.baseToken][marketDetails.quoteToken][side][orderId];
+		if (order.nextOrderId != 0) {
+			orders[marketDetails.baseToken][marketDetails.quoteToken][side][order.nextOrderId].previousOrderId = order.previousOrderId;
+		}
+		if (order.previousOrderId != 0) {
+			orders[marketDetails.baseToken][marketDetails.quoteToken][side][order.previousOrderId].nextOrderId = order.nextOrderId;
+		}
 
 		// Re-entrancy here is limited to malicious tokens
 		if (side == Side.SELL) {
@@ -240,7 +250,7 @@ contract MatchingOrderBook {
 		return MARKET_DETAILS[marketId];
 	}
 
-	function getOrder(address baseToken, address quoteToken, Side side, uint orderId) external view returns (Order memory) {
+	function getOrder(address baseToken, address quoteToken, Side side, uint128 orderId) external view returns (Order memory) {
 		return orders[baseToken][quoteToken][side][orderId];
 	}
 
@@ -250,7 +260,7 @@ contract MatchingOrderBook {
 
 	function getOrderBook(address baseToken, address quoteToken, Side side, uint depth) external view returns (Order[] memory) {
 		Order[] memory returnOrders = new Order[](depth); 
-		uint orderId = orderbooks[baseToken][quoteToken][side];
+		uint128 orderId = orderbooks[baseToken][quoteToken][side];
 		for (uint i=0; i < depth; i++) {
 			returnOrders[i] = orders[baseToken][quoteToken][side][orderId];
 			orderId = orders[baseToken][quoteToken][side][orderId].nextOrderId;

@@ -28,6 +28,9 @@ contract Bank {
 	}
 }
 
+error Uint2Error(uint m, uint n);
+error AddressError(address m);
+
 contract MatchingOrderBook {
 	enum Side {
 		BUY,
@@ -206,6 +209,9 @@ contract MatchingOrderBook {
 					nextOrderId = orders[marketId][side][nextOrderId].nextOrderId;
 				}
 				orders[marketId][side][previousOrderId].nextOrderId = orderId;
+				if (previousOrderId == 0) {
+					orderbooks[marketId][side] = orderId;
+				}
 			}
 			orders[marketId][side][orderId] = Order(msg.sender, baseQuantity, price, nextOrderId, previousOrderId);
 

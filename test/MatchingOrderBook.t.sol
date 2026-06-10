@@ -563,11 +563,20 @@ contract MatchingOrderBookTest is Test {
 		EURT.mint(user1, 1000e6);
 		vm.prank(user1);
 		USDC.approve(address(orderBook), 300e18);
-		USDC.mint(user1, 1000e6);
+		USDC.mint(user2, 1000e6);
 		vm.prank(user1);
 		orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 1e6);
+		MatchingOrderBook.Order[] memory orders = orderBook.getOrderBook(marketId, MatchingOrderBook.Side.SELL, 2);
+		assertEq(orders[0].user, user1);
+		assertEq(orders[0].baseQuantity, 1000e6);
+		assertEq(orders[0].previousOrderId, 0);
+		assertEq(orders[0].nextOrderId, 0);
+		assertEq(orders[1].baseQuantity, 0);
 		vm.prank(user2);
 		orderBook.placeOrder(marketId, MatchingOrderBook.Side.BUY, 500e6, 1e6);
+	}
+
+	function testFillDifferentBaseSizes() public {
 	}
 
 }

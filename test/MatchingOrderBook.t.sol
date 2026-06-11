@@ -578,6 +578,29 @@ contract MatchingOrderBookTest is Test {
 		orderBook.placeOrder(marketId, MatchingOrderBook.Side.BUY, 500e6, 1e6);
 	}
 
+	function testFillThenTooSmallToPost() public {
+		orderBook.createMarket(address(EURT), address(USDC), 0, 1000e6);
+		bytes32 marketId = orderBook.getMarketId(address(EURT), address(USDC), 0, 1000e6);
+		vm.prank(user1);
+		EURT.approve(address(orderBook), 300e18);
+		EURT.mint(user1, 1000e6);
+		vm.prank(user2);
+		USDC.approve(address(orderBook), 300e18);
+		USDC.mint(user2, 1100e6);
+		vm.prank(user1);
+		orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 1e6);
+		MatchingOrderBook.Order[] memory orders = orderBook.getOrderBook(marketId, MatchingOrderBook.Side.SELL, 2);
+		assertEq(orders[0].user, user1);
+		assertEq(orders[0].baseQuantity, 1000e6);
+		assertEq(orders[0].previousOrderId, 0);
+		assertEq(orders[0].nextOrderId, 0);
+		assertEq(orders[1].baseQuantity, 0);
+		vm.prank(user2);
+		orderBook.placeOrder(marketId, MatchingOrderBook.Side.BUY, 1100e6, 1e6);
+		uint user2usdc = USDC.balanceOf(user2);
+		assertEq(user2usdc, 100e6, "remainder was not refunded");
+	}
+
 	function testInsertBestOffer() public {
 		orderBook.createMarket(address(EURT), address(USDC), 0, 10e6);
 		bytes32 marketId = orderBook.getMarketId(address(EURT), address(USDC), 0, 10e6);

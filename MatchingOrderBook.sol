@@ -204,7 +204,8 @@ contract MatchingOrderBook {
 				orderbooks[marketId][side] = orderId;
 			}
 			else {
-				while (nextOrderId != 0 && orders[marketId][side][nextOrderId].price <= price) {
+				while ((side == Side.SELL && nextOrderId != 0 && orders[marketId][side][nextOrderId].price <= price) || 
+				       (side == Side.BUY && nextOrderId != 0 && orders[marketId][side][nextOrderId].price >= price)) {
 					previousOrderId = nextOrderId;
 					nextOrderId = orders[marketId][side][nextOrderId].nextOrderId;
 				}

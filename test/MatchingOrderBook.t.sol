@@ -254,17 +254,19 @@ contract MatchingOrderBookTest is Test {
 		assertEq(user1eurt, 2500e6);
 		assertEq(user1usdc, 0);
 		assertEq(user2eurt, 0);
-		assertEq(user2usdc, 2700e6);
+		assertEq(user2usdc, 2800e6);
 		MatchingOrderBook.MarketDetails memory marketDetails = orderBook.getMarketDetails(marketId);
 		uint bankEurtBalance = EURT.balanceOf(marketDetails.bankAddress);
 		uint bankUsdcBalance = USDC.balanceOf(marketDetails.bankAddress);
 		assertEq(bankEurtBalance, 0);
-		assertEq(bankUsdcBalance, 600e6);
-		MatchingOrderBook.Order[] memory orders = orderBook.getOrderBook(marketId, MatchingOrderBook.Side.BUY, 1);
+		assertEq(bankUsdcBalance, 500e6);
+		MatchingOrderBook.Order[] memory orders = orderBook.getOrderBook(marketId, MatchingOrderBook.Side.BUY, 2);
 		assertEq(orders[0].user, user1);
 		assertEq(orders[0].baseQuantity, 500e6);
-		assertEq(orders[0].price, 12e5);
+		assertEq(orders[0].price, 1e6);
 		assertEq(orders[0].nextOrderId, 0);
+		assertEq(orders[1].user, address(0));
+		assertEq(orders[1].baseQuantity, 0);
 	}
 
 	function testFill3SellsWithLeftover() public {
@@ -588,6 +590,21 @@ contract MatchingOrderBookTest is Test {
 		orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 9e5);
 		MatchingOrderBook.Order[] memory orders = orderBook.getOrderBook(marketId, MatchingOrderBook.Side.SELL, 2);
 		assertEq(orders[0].price, 9e5);
+		assertEq(orders[1].price, 1e6);
+	}
+
+	function testInsertBestBid() public {
+		orderBook.createMarket(address(EURT), address(USDC), 0, 10e6);
+		bytes32 marketId = orderBook.getMarketId(address(EURT), address(USDC), 0, 10e6);
+		vm.prank(user1);
+		EURT.approve(address(orderBook), 300e18);
+		EURT.mint(user1, 2000e6);
+		vm.prank(user1);
+		orderBook.placeOrder(marketId, MatchingOrderBook.Side.BUY, 1000e6, 1e6);
+		vm.prank(user1);
+		orderBook.placeOrder(marketId, MatchingOrderBook.Side.BUY, 1000e6, 11e5);
+		MatchingOrderBook.Order[] memory orders = orderBook.getOrderBook(marketId, MatchingOrderBook.Side.BUY, 2);
+		assertEq(orders[0].price, 11e5);
 		assertEq(orders[1].price, 1e6);
 	}
 

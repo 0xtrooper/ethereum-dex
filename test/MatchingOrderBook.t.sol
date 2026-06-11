@@ -561,7 +561,7 @@ contract MatchingOrderBookTest is Test {
 		vm.prank(user1);
 		EURT.approve(address(orderBook), 300e18);
 		EURT.mint(user1, 1000e6);
-		vm.prank(user1);
+		vm.prank(user2);
 		USDC.approve(address(orderBook), 300e18);
 		USDC.mint(user2, 1000e6);
 		vm.prank(user1);
@@ -574,6 +574,21 @@ contract MatchingOrderBookTest is Test {
 		assertEq(orders[1].baseQuantity, 0);
 		vm.prank(user2);
 		orderBook.placeOrder(marketId, MatchingOrderBook.Side.BUY, 500e6, 1e6);
+	}
+
+	function testInsertBestOffer() public {
+		orderBook.createMarket(address(EURT), address(USDC), 0, 10e6);
+		bytes32 marketId = orderBook.getMarketId(address(EURT), address(USDC), 0, 10e6);
+		vm.prank(user1);
+		EURT.approve(address(orderBook), 300e18);
+		EURT.mint(user1, 2000e6);
+		vm.prank(user1);
+		orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 1e6);
+		vm.prank(user1);
+		orderBook.placeOrder(marketId, MatchingOrderBook.Side.SELL, 1000e6, 9e5);
+		MatchingOrderBook.Order[] memory orders = orderBook.getOrderBook(marketId, MatchingOrderBook.Side.SELL, 2);
+		assertEq(orders[0].price, 9e5);
+		assertEq(orders[1].price, 1e6);
 	}
 
 	function testFillDifferentBaseSizes() public {
